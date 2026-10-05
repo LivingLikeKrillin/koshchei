@@ -4,3 +4,4 @@ plugins {
 rootProject.name = "koshchei"
 include("core")
 include("runtime")
+include("host")
