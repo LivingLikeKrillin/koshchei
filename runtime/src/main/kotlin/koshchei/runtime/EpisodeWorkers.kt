@@ -22,7 +22,7 @@ enum class PicassoMode {
     OFF, MOCK, PICASSO;
 
     companion object {
-        /** `KOSHCHEI_PICASSO`, read the same way by every process that must agree on episode mode (worker, watcher, control plane). */
+        /** `KOSHCHEI_PICASSO`, read the same way by every process that must agree on episode mode (the worker and the watcher). */
         fun fromEnv(env: Map<String, String>): PicassoMode = when (val v = env["KOSHCHEI_PICASSO"] ?: "off") {
             "off" -> OFF
             "mock" -> MOCK
