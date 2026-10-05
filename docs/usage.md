@@ -40,7 +40,7 @@ Open `http://localhost:5174` in your browser to view the Episodes screen. The co
 
 ### Sharing Temporal
 
-koshchei uses the Temporal server on `localhost:7233` in the default namespace, where narrator's worker uses the same server and koshei, the repository koshchei was split from, still contains the same episode loop.
+koshchei uses the Temporal server on `localhost:7233` in the default namespace, where narrator's worker uses the same server. koshei, the repository koshchei was split from, no longer contains the episode loop: it was removed from koshei's main branch in commit 335946a (koshei PR #11, 2026-10-05); in the bullets below, "koshei" means a koshei build from before 335946a.
 
 - Both koshchei and koshei name the episode workflow type `EpisodeWorkflow` and its ids `ep:<key>`. `agent-off --all` lists every open workflow of type `EpisodeWorkflow` on the server, so it also sends `agentOff` to koshei's open episodes.
 - `open` (and the watcher) use signalWithStart on `ep:<key>`: when a run with that id is still open, the symptom goes to that run, even if koshei started it. The default key is `<runId>:<id>` from the export, so opening the same export line in both repositories gives the same id. The watcher's ids also come from the export and take no prefix, so do not let a koshei watcher and a koshchei watcher read the same exports on one server.
