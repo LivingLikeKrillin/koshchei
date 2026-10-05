@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.local
+.vite/
+
+# Playwright e2e output (videos, traces, reports)
+test-results/
+playwright-report/

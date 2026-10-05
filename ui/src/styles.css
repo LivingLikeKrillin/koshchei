@@ -1,0 +1,334 @@
+/* =============================================================================
+   Koshchei Episodes — design system (the subset the Episodes screen uses)
+   Aesthetic: industrial control surface / aerospace ground-station instrument panel.
+   Graphite base, warm paper-white ink, one acid-lime accent for affordance, and the
+   domain risk triad (red/amber/green) as load-bearing signal colors with glow + LED.
+   Type: Archivo (display, heavy), JetBrains Mono (codes/IDs/metadata), Spline Sans (prose).
+   ============================================================================= */
+
+:root {
+  --bg: #0b0d0e;
+  --bg-panel: #121517;
+  --bg-panel-2: #171b1e;
+  --bg-inset: #0e1012;
+  --line: #262b2f;
+  --line-soft: #1c2023;
+  --ink: #e9e6dd;
+  --ink-dim: #9aa0a0;
+  --ink-faint: #61686b;
+
+  --accent: #c6f24e; /* acid lime */
+  --accent-dim: #8aa838;
+  --accent-ink: #0b0d0e;
+
+  --risk-red: #ff5a52;
+  --risk-red-glow: rgba(255, 90, 82, 0.16);
+  --risk-amber: #ffb443;
+  --risk-amber-glow: rgba(255, 180, 67, 0.16);
+  --risk-green: #5bd07a;
+  --risk-green-glow: rgba(91, 208, 122, 0.16);
+
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+  --display: "Archivo", system-ui, sans-serif;
+  --sans: "Spline Sans", system-ui, sans-serif;
+
+  --rail-w: 232px;
+
+  /* type scale */
+  --fs-2xs:10px; --fs-xs:11px; --fs-sm:12px; --fs-md:13px; --fs-base:14px;
+  --fs-lg:16px; --fs-xl:18px; --fs-2xl:22px; --fs-3xl:30px;
+  /* spacing scale (4-based) */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px; --sp-10:40px; --sp-12:48px;
+  /* radius scale */
+  --r-sm:2px; --r-md:3px; --r-lg:4px; --r-pill:999px;
+  /* color / alpha */
+  --accent-bright:#d4ff63;
+  --accent-a04:rgba(198,242,78,0.04); --accent-a06:rgba(198,242,78,0.06); --accent-a12:rgba(198,242,78,0.12);
+  --accent-a15:rgba(198,242,78,0.15); --accent-a18:rgba(198,242,78,0.18); --accent-a30:rgba(198,242,78,0.30);
+  --accent-a35:rgba(198,242,78,0.35); --accent-a45:rgba(198,242,78,0.45);
+  --risk-amber-a40:rgba(255,180,67,0.40); --risk-red-a40:rgba(255,90,82,0.40); --risk-green-a40:rgba(91,208,122,0.40);
+  --scrim:rgba(5,6,7,0.74); --shadow-modal:rgba(0,0,0,0.60); --on-accent-dim:rgba(11,13,14,0.60);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  /* faint grid texture — the instrument-panel substrate */
+  background-image:
+    linear-gradient(var(--line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size: 44px 44px;
+  background-position: -1px -1px;
+}
+
+button {
+  font-family: inherit;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ---- App shell ----------------------------------------------------------- */
+
+.app-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-10);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-panel);
+}
+
+.app-head .brand {
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: var(--fs-xl);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.app-head .muted {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.app-main {
+  padding: 28px var(--sp-10) 80px;
+}
+
+/* ---- Buttons ------------------------------------------------------------- */
+
+.btn {
+  appearance: none;
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--line);
+  background: var(--bg-panel-2);
+  color: var(--ink);
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  transition: all 0.14s ease;
+}
+
+.btn:hover {
+  border-color: var(--ink-faint);
+  background: var(--bg-panel);
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+.btn.primary:hover {
+  background: var(--accent-bright);
+}
+
+.btn.danger:hover {
+  border-color: var(--risk-red);
+  color: var(--risk-red);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn.ghost {
+  background: transparent;
+}
+
+/* ---- Status chips -------------------------------------------------------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: var(--fs-2xs);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px var(--sp-2);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+}
+
+.chip.ok     { color: var(--risk-green); border-color: var(--risk-green-a40); }
+.chip.err    { color: var(--risk-red);   border-color: var(--risk-red-a40); }
+.chip.run    { color: var(--accent);     border-color: var(--accent-a35); }
+.chip.muted  { color: var(--ink-dim);    border-color: var(--line); }
+/* AWAITING_APPROVAL (live, needs YOU): solid amber, distinct from the outlined chips. */
+.chip.await  { background: var(--risk-amber); color: #1a1200; font-weight: 700; }
+
+/* ---- Form controls -------------------------------------------------------- */
+
+input[type="text"],
+input[type="number"],
+textarea,
+select {
+  font-family: var(--sans);
+  font-size: var(--fs-md);
+  background: var(--bg-inset);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  width: 100%;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+input.mono,
+select.mono {
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 64px;
+  line-height: 1.5;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-a12);
+}
+
+select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink-dim) 50%),
+    linear-gradient(135deg, var(--ink-dim) 50%, transparent 50%);
+  background-position: calc(100% - 16px) center, calc(100% - 11px) center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: var(--sp-8);
+}
+
+/* ---- Panels --------------------------------------------------------------- */
+
+.panel {
+  border: 1px solid var(--line);
+  background: var(--bg-panel);
+  border-radius: var(--r-md);
+}
+
+.panel-body {
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+/* ---- Misc ---------------------------------------------------------------- */
+
+.muted {
+  color: var(--ink-faint);
+}
+
+.empty {
+  border: 1px dashed var(--line);
+  border-radius: var(--r-md);
+  padding: var(--sp-12);
+  text-align: center;
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.06em;
+}
+
+.banner {
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: var(--r-sm);
+  padding: var(--sp-3) var(--sp-4);
+  font-size: var(--fs-md);
+  display: flex;
+  gap: var(--sp-2);
+  align-items: flex-start;
+}
+
+.banner.ok {
+  border-left-color: var(--risk-green);
+  color: var(--risk-green);
+  background: var(--risk-green-glow);
+}
+.banner.err {
+  border-left-color: var(--risk-red);
+  color: var(--risk-red);
+  background: var(--risk-red-glow);
+}
+.banner.info {
+  border-left-color: var(--accent);
+  background: var(--accent-a06);
+  color: var(--ink);
+}
+.banner.await   { background: var(--risk-amber-a40); border-color: var(--risk-amber); color: var(--risk-amber); }
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+  flex-wrap: wrap;
+}
+
+/* small uniform padding (placeholder rows; 10→8, ≤2px) */
+.pad-sm {
+  padding: var(--sp-2);
+}
+
+/* ---- Episode list / detail panes ------------------------------------------- */
+.console-list { overflow-y: auto; border-right: 1px solid var(--line); }
+.console-run { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-2) var(--sp-2); cursor: pointer; border-bottom: 1px solid var(--line-soft); }
+.console-run:hover { background: var(--bg-panel); }
+.console-run.active { background: var(--bg-panel-2); }
+.console-run .row1 { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.console-run .row1 .run-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.console-run .row1 .chip { flex-shrink: 0; }
+.console-detail { display: flex; flex-direction: column; height: 100%; }
+.console-detail.empty { align-items: center; justify-content: center; color: var(--ink-dim); }
+.console-detail-head { display: flex; align-items: center; gap: var(--sp-2); padding: 6px 4px; flex-wrap: wrap; min-width: 0; }
+
+/* ---- Episodes screen ------------------------------------------------------ */
+.episodes-grid { display: grid; grid-template-columns: 300px 1fr 300px; gap: var(--sp-4); min-height: 0; }
+.episodes-card dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--sp-1) var(--sp-3); margin: 0; }
+.episodes-card dt { color: var(--ink-dim); font-family: var(--mono); }
+.episodes-card .mono, .episodes-detail .mono, .episodes-row .mono, .episodes-feed .mono { font-family: var(--mono); overflow-wrap: anywhere; }
+.episodes-precondition { font-weight: 600; }
+.episodes-decisions { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+.episodes-feed { max-height: 70vh; overflow: auto; }
+.episodes-hint { color: var(--risk-amber); font-size: var(--fs-sm); }
+.episodes-row { width: 100%; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--line-soft); color: inherit; font: inherit; cursor: pointer; }
+.episodes-row > span { display: block; }
+.episodes-row > .row1 { display: flex; }
+@media (max-width: 1100px) { .episodes-grid { grid-template-columns: 1fr; } }
