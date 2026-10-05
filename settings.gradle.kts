@@ -5,3 +5,4 @@ rootProject.name = "koshchei"
 include("core")
 include("runtime")
 include("host")
+include("api")
