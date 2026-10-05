@@ -1,0 +1,7 @@
+core/src/test/resources/** text eol=lf
+runtime/src/test/resources/** text eol=lf
+host/src/test/resources/** text eol=lf
+api/src/test/resources/** text eol=lf
+gradlew text eol=lf
+*.bat text eol=crlf
+*.jar binary

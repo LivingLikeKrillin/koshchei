@@ -1,0 +1,22 @@
+# Gradle / build output
+.gradle/
+build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.kotlin/
+
+# Node (ui)
+node_modules/
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets / local env
+.env
+.env.*
+*.local
