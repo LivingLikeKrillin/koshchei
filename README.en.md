@@ -19,16 +19,10 @@ Ports and the database changed with the split: Postgres 15432 → 15433 (databas
 
 ## How it works
 
-```mermaid
-flowchart LR
-  PX["picasso bundle<br/>(incidents, remedy searches)"] --> W["watcher<br/>(:host:watcher)"]
-  W -->|symptom| EP["episode workflow<br/>(:runtime around :core)"]
-  EP <-->|"diagnose activity on narrator-tq"| N["narrator"]
-  H["operator<br/>(episodes screen, :api)"] -->|"approve / confirm"| EP
-  EP -->|"POST /approvals"| PW["picasso approval endpoint"]
-  PW -.->|"JobResponse<br/>(ResultExport schema 1)"| W
-  W -->|job response| EP
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/flow.en.dark.svg">
+  <img alt="The watcher reads incident lines and remedy search records from the picasso bundle and passes them to the episode workflow as symptoms. The episode workflow exchanges diagnosis requests and responses with narrator through the diagnose activity on narrator-tq, and the operator on the episodes screen sends approvals and confirmations. The workflow sends POST /approvals to the picasso approval endpoint, whose JobResponse (ResultExport schema 1) returns through the watcher to the workflow as a job response." src="docs/diagrams/flow.en.svg">
+</picture>
 
 - **Symptoms in.** A watcher process (`:host:watcher`) reads picasso's exported incident lines and remedy-search lines and signals them into episodes. Policy table v1 has one correlation rule: a robot's search line and incident line on the same job order become one episode.
 - **Diagnosis.** narrator answers on the Temporal queue `narrator-tq` (diagnosis contract 0.6). It does not describe a remedy; it points at one of the candidates koshchei computed. Only a recommendation inside those candidates with at least one verified citation becomes an approval request; anything else (no grounds, uncited, an ESCALATE recommendation, a contract violation) goes to an operator.
