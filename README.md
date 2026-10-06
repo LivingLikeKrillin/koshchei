@@ -5,124 +5,120 @@
 ![Engine: Temporal](https://img.shields.io/badge/engine-Temporal-2088FF)
 ![Status: proof of concept](https://img.shields.io/badge/status-proof--of--concept-orange)
 
-koshchei is a deterministic state machine that follows one fault on a robot cell (one "episode") from its first symptom to its resolution. It sits on top of two sibling projects: picasso, the robot execution middleware, and narrator, which diagnoses. It is a pure, deterministic core (`:core`, no Temporal, Spring or JDBC dependency, only Jackson's JSON tree) inside a Temporal shell (`:runtime`): the workflow drives the core's transition function and decides nothing itself. It is a proof of concept on one machine.
+[English README](README.en.md)
 
-## Where it came from
+koshchei는 로봇 셀에서 발생한 단일 고장을 첫 증상부터 최종 해결까지 하나의 «에피소드»로 추적하는 결정적 상태기계입니다. 로봇 실행 미들웨어인 picasso와 진단을 담당하는 narrator, 두 형제 프로젝트 위에서 동작합니다. Temporal 셸(`:runtime`) 안에 순수하고 결정적인 코어(`:core`)를 두는 구조입니다. 코어는 Temporal, Spring, JDBC에 의존하지 않고 Jackson의 JSON 트리에만 의존하며, 워크플로는 코어의 전이 함수를 실행할 뿐 스스로 판단하지 않습니다. 단일 머신에서 동작하는 개념 증명입니다.
 
-The code was split out of the koshei repository on 2026-10-05, from koshei commit `6e66dbe`. It had come into koshei through koshei PR #4 (the design) and PR #5 (the implementation). koshchei starts a new history; the commit history before the split stays in koshei. The two were split because they are different kinds of system: koshei keeps its own role as an engine-neutral saga platform for OT/IT integration, while koshchei keeps only the episode loop.
+## 프로젝트의 출발점
 
-With the split, packages, environment variables, the database, the DB role and the task queue were renamed to koshchei (for example `KOSHEI_PICASSO` became `KOSHCHEI_PICASSO`, and the queue `koshei-episode-tq` became `koshchei-episode-tq`). Outside contracts kept their names: narrator's queue `narrator-tq` and activity `diagnose`, picasso's approval endpoint schema 4 and ResultExport schema 1. Behaviour did not change, with one exception: the worker now refuses to start when `KOSHCHEI_PICASSO` is unset or `off`, because the episode worker is the only thing it runs.
+이 코드는 2026-10-05에 koshei 저장소의 커밋 `6e66dbe`에서 분리되었습니다. koshei에는 PR #4로 설계가, PR #5로 구현이 들어왔습니다. koshchei는 새로운 이력을 시작하며, 분리 이전의 커밋 이력은 koshei에 남습니다. 두 시스템의 성격이 달라 분리했습니다. koshei는 OT/IT 통합을 위한 엔진 중립적 사가 플랫폼 역할을 유지하고, koshchei는 에피소드 루프만 담당합니다.
 
-Ports and the database changed with the split: Postgres 15432 → 15433 (database `koshchei` instead of `koshei`), the HTTP API 18090 → 18190, and the UI dev server 5173 → 5174. Episode audit records written before the split stay in koshei's database; koshchei starts with empty tables.
+분리하면서 패키지, 환경 변수, 데이터베이스, DB 역할, 작업 큐의 이름을 koshchei로 변경했습니다. 예를 들어 `KOSHEI_PICASSO`는 `KOSHCHEI_PICASSO`로, 큐 `koshei-episode-tq`는 `koshchei-episode-tq`로 바뀌었습니다. 외부 계약의 이름은 유지했습니다. narrator의 큐 `narrator-tq`와 액티비티 `diagnose`, picasso 승인 엔드포인트의 스키마 4와 ResultExport의 스키마 1은 그대로입니다. 동작도 유지했지만 한 가지 예외가 있습니다. 이제 워커는 에피소드 워커만 실행하므로, `KOSHCHEI_PICASSO`가 설정되지 않았거나 `off`이면 시작하지 않습니다.
 
-## How it works
+포트와 데이터베이스도 변경했습니다. Postgres는 15432 → 15433으로 바뀌었으며, 데이터베이스는 `koshei` 대신 `koshchei`를 사용합니다. HTTP API는 18090 → 18190, UI 개발 서버는 5173 → 5174로 바뀌었습니다. 분리 이전에 작성된 에피소드 감사 기록은 koshei의 데이터베이스에 남으며, koshchei는 빈 테이블에서 시작합니다.
 
-```mermaid
-flowchart LR
-  PX["picasso bundle<br/>(incidents, remedy searches)"] --> W["watcher<br/>(:host:watcher)"]
-  W -->|symptom| EP["episode workflow<br/>(:runtime around :core)"]
-  EP <-->|"diagnose activity on narrator-tq"| N["narrator"]
-  H["operator<br/>(episodes screen, :api)"] -->|"approve / confirm"| EP
-  EP -->|"POST /approvals"| PW["picasso approval endpoint"]
-  PW -.->|"JobResponse<br/>(ResultExport schema 1)"| W
-  W -->|job response| EP
-```
+## 동작 방식
 
-- **Symptoms in.** A watcher process (`:host:watcher`) reads picasso's exported incident lines and remedy-search lines and signals them into episodes. Policy table v1 has one correlation rule: a robot's search line and incident line on the same job order become one episode.
-- **Diagnosis.** narrator answers on the Temporal queue `narrator-tq` (diagnosis contract 0.6). It does not describe a remedy; it points at one of the candidates koshchei computed. Only a recommendation inside those candidates with at least one verified citation becomes an approval request; anything else (no grounds, uncited, an ESCALATE recommendation, a contract violation) goes to an operator.
-- **Approval and dispatch.** An operator approves the remedy; policy table v1 keeps auto-approval off. The core revalidates the precondition, records the intent, and only then dispatches to picasso's approval endpoint (`POST /approvals`, `KOSHCHEI_PICASSO=picasso`) or to the mock approval client (`KOSHCHEI_PICASSO=mock`).
-- **Resolution.** picasso's job responses come back through the watcher. The episode is DONE only when every approved unit completed, nothing has in-doubt status and the robot's connection state is ONLINE. Otherwise it stays UNKNOWN or goes to an operator.
-- **Interfaces.** The HTTP API `/api/episodes…` (`:api`, port 18190), the episodes screen in `ui/` (Vite dev server on port 5174), and a developer CLI (`:host:cli` with `open` and `agent-off <workflowId>|--all`).
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/flow.dark.svg">
+  <img alt="picasso 번들의 인시던트 줄과 조치 탐색 기록을 감시자가 읽어 에피소드 워크플로에 증상으로 전달합니다. 에피소드 워크플로는 narrator-tq의 diagnose 액티비티로 narrator와 진단 요청과 응답을 주고받고, 에피소드 화면의 운영자는 승인과 확인을 전달합니다. 워크플로는 picasso 승인 엔드포인트에 POST /approvals를 보내며, 엔드포인트의 JobResponse(ResultExport 스키마 1)는 감시자를 거쳐 작업 응답으로 워크플로에 돌아옵니다." src="docs/diagrams/flow.svg">
+</picture>
 
-## What it runs with
+- **증상 수신.** 감시자 프로세스(`:host:watcher`)가 picasso에서 내보낸 인시던트 줄과 조치 탐색 기록을 읽어 에피소드에 신호로 전달합니다. 정책 테이블 v1에는 상관 규칙이 하나 있습니다. 같은 로봇의 조치 탐색 기록과 인시던트 줄이 같은 작업 지시에 속하면 하나의 에피소드로 묶습니다.
+- **진단.** narrator는 Temporal 큐 `narrator-tq`에서 응답합니다(진단 계약 0.6). 조치를 직접 서술하지 않고 koshchei가 계산한 후보 가운데 하나를 가리킵니다. 후보 안의 권고이면서 검증된 인용이 최소 하나 있을 때만 승인 요청으로 이어집니다. 그 밖의 결과(근거 없음, 인용 없음, ESCALATE 권고, 계약 위반)는 운영자에게 인계합니다.
+- **승인과 디스패치.** 운영자가 조치를 승인합니다. 정책 테이블 v1에서는 자동 승인을 꺼 둡니다. 코어는 사전 조건을 재검증하고 디스패치 의도 기록을 남긴 뒤에야 picasso 승인 엔드포인트(`POST /approvals`, `KOSHCHEI_PICASSO=picasso`) 또는 목 승인 클라이언트(`KOSHCHEI_PICASSO=mock`)로 디스패치합니다.
+- **해결.** picasso의 작업 응답은 감시자를 거쳐 돌아옵니다. 승인된 실행 단계가 모두 완료되고, 의심 상태인 항목이 없으며, 로봇의 연결 상태가 ONLINE일 때만 에피소드가 DONE이 됩니다. 그렇지 않으면 UNKNOWN에 머물거나 운영자에게 인계합니다.
+- **인터페이스.** HTTP API `/api/episodes…`(`:api`, 포트 18190), `ui/`의 에피소드 화면(Vite 개발 서버 포트 5174), 개발자 CLI(`:host:cli`, `open`과 `agent-off <workflowId>|--all`)를 제공합니다.
 
-- picasso: koshchei sends approvals to picasso's approval endpoint (`POST /approvals`, schema 4) and reads picasso's job responses (JobResponse lines, ResultExport schema 1). The endpoint is loopback-only.
-- narrator: the `diagnose` activity on the Temporal queue `narrator-tq`, diagnosis contract 0.6. With `KOSHCHEI_NARRATOR=mock` (the default) the worker serves that queue itself with mock narrator activities; with `remote` narrator's own worker does.
-- Temporal: koshchei uses the Temporal server on `localhost:7233`, the same server narrator's worker and picasso use. Its own Docker Compose file starts only Postgres (database `koshchei` on host port 15433); a private Temporal starts only with `docker compose --profile temporal up -d`, for a machine where nothing holds 7233 yet.
-- Sharing Temporal: koshei, the repository koshchei was split from, no longer contains the episode loop: it was removed from koshei's main branch in commit 335946a (koshei PR #11, 2026-10-05). The sharing caution still applies to koshei builds from before 335946a and to the episodes they started that are still open on a shared Temporal server (under policy table v1 an escalated episode stays open for 24 hours). On the same Temporal server koshchei and koshei use the same workflow type `EpisodeWorkflow`, the same workflow ids `ep:<key>`, and narrator's queue `narrator-tq`. So `agent-off --all` also reaches koshei's open episodes, and an `open` whose id is still running in koshei signals koshei's run. On a shared server, pass `--key` with a koshchei-specific prefix, set `KOSHCHEI_NARRATOR=remote` whenever narrator's worker runs, or use the private Temporal (`docker compose --profile temporal up -d`) on a machine where nothing holds 7233. Details are in [`docs/usage.md`](docs/usage.md#sharing-temporal) §1.
+## 함께 사용하는 시스템
 
-## Modules
+- picasso: koshchei는 picasso 승인 엔드포인트(`POST /approvals`, 스키마 4)에 승인 요청을 보내고, picasso의 작업 응답(JobResponse 줄, ResultExport 스키마 1)을 읽습니다. 승인 엔드포인트는 루프백에서만 접근할 수 있습니다.
+- narrator: Temporal 큐 `narrator-tq`의 `diagnose` 액티비티를 사용하며, 진단 계약은 0.6입니다. `KOSHCHEI_NARRATOR=mock`(기본값)이면 koshchei 워커가 목 narrator 액티비티로 해당 큐를 직접 처리합니다. `remote`이면 narrator 자체 워커가 처리합니다.
+- Temporal: koshchei는 narrator 워커와 picasso가 사용하는 것과 같은 `localhost:7233`의 Temporal 서버를 사용합니다. 자체 Docker Compose 파일은 Postgres만 시작합니다(데이터베이스 `koshchei`, 호스트 포트 15433). 전용 Temporal은 `docker compose --profile temporal up -d`로만 시작하며, 7233을 사용 중인 프로세스가 없는 머신을 위한 구성입니다.
+- Temporal 공유: koshchei가 분리되어 나온 koshei 저장소에는 이제 에피소드 루프가 없습니다. koshei의 main 브랜치에서 커밋 335946a(koshei PR #11, 2026-10-05)로 제거되었습니다. 다만 335946a 이전의 koshei 빌드와 그 빌드가 공용 Temporal 서버에서 시작해 아직 열려 있는 에피소드에는 공유 시 주의사항이 여전히 적용됩니다. 정책 테이블 v1에서 운영자에게 인계된 에피소드는 24시간 동안 열려 있습니다. 같은 Temporal 서버에서 koshchei와 koshei는 워크플로 타입 `EpisodeWorkflow`, 워크플로 ID `ep:<key>`, narrator의 큐 `narrator-tq`를 공유합니다. 따라서 `agent-off --all`은 koshei의 열린 에피소드에도 전달되며, `open`으로 지정한 ID가 koshei에서 실행 중이면 koshei의 실행에 신호를 보냅니다. 공용 서버에서는 `--key`에 koshchei 전용 접두사를 지정하거나, narrator 워커가 실행 중이면 `KOSHCHEI_NARRATOR=remote`를 설정하거나, 7233을 사용 중인 프로세스가 없는 머신에서 전용 Temporal(`docker compose --profile temporal up -d`)을 사용하세요. 자세한 내용은 [`docs/usage.md`](docs/usage.md#sharing-temporal) §1에 있습니다.
 
-| Module | What it holds |
+## 모듈
+
+| 모듈 | 구성 |
 |---|---|
-| `:core` | The pure core: episode state machine, transition function, policy table, candidates, diagnosis request and diagnosis validation. Depends only on Jackson's JSON tree. |
-| `:runtime` | The Temporal shell: `EpisodeWorkflow`, its activities, the episode tables (`EpisodeStore`), the watcher's logic, the mock narrator activities, the mock approval client and the live (`HttpApprovalClient`) approval client, `Db`. |
-| `:host` | The processes: the episode worker (`:host:run`), the watcher (`:host:watcher`), the developer CLI (`:host:cli`). |
-| `:api` | The Spring Boot HTTP API, `/api/episodes…` on port 18190 (`:api:run`). |
-| `ui/` | The episodes screen, Vite + React, dev server on port 5174. Not a Gradle module. |
+| `:core` | 순수 코어: 에피소드 상태기계, 전이 함수, 정책 테이블, 후보, 진단 요청과 판정. Jackson의 JSON 트리에만 의존합니다. |
+| `:runtime` | Temporal 셸: `EpisodeWorkflow`와 액티비티, 에피소드 테이블(`EpisodeStore`), 감시자 로직, 목 narrator 액티비티, 목 승인 클라이언트와 실환경 실행용 승인 클라이언트(`HttpApprovalClient`), `Db`. |
+| `:host` | 실행 프로세스: 에피소드 워커(`:host:run`), 감시자(`:host:watcher`), 개발자 CLI(`:host:cli`). |
+| `:api` | Spring Boot HTTP API. 포트 18190에서 `/api/episodes…`를 제공합니다(`:api:run`). |
+| `ui/` | Vite + React 기반 에피소드 화면. 개발 서버 포트는 5174이며, Gradle 모듈이 아닙니다. |
 
-Dependencies run one way: `core` ← `runtime` ← `host`, and `runtime` ← `api`. No module depends on any koshei module; the two small pieces that came from koshei's shared modules (the raw-JSON data converter and the `Db` connection settings) were copied into `:runtime`. `ui/` is a React app outside the Gradle build.
+의존성은 `core` ← `runtime` ← `host`, `runtime` ← `api` 방향으로만 이어집니다. 어떤 모듈도 koshei 모듈에 의존하지 않습니다. koshei의 공용 모듈에서 가져온 작은 구성 두 가지(raw-JSON 데이터 변환기와 `Db` 연결 설정)는 `:runtime`으로 복사했습니다. `ui/`는 Gradle 빌드 밖에 있는 React 앱입니다.
 
-## Quickstart with the mock approval client
+## 목 승인 클라이언트로 빠르게 시작하기
 
-The commands start Postgres, the episode worker with the mock approval client, the HTTP API and the episodes screen, and open one episode from the committed sample bundle.
+아래 명령은 Postgres, 목 승인 클라이언트를 사용하는 에피소드 워커, HTTP API, 에피소드 화면을 시작하고, 저장소에 커밋된 샘플 번들에서 에피소드 하나를 엽니다.
 
 ```bash
-docker compose up -d --wait           # koshchei's Postgres on host port 15433
-# Temporal: the shared server on localhost:7233; if nothing runs there: docker compose --profile temporal up -d
+docker compose up -d --wait           # 호스트 포트 15433의 koshchei Postgres
+# Temporal: localhost:7233의 공용 서버 사용. 실행 중인 서버가 없으면: docker compose --profile temporal up -d
 
-# terminal 1: the episode worker on koshchei-episode-tq, with the Mock narrator on narrator-tq
+# 터미널 1: koshchei-episode-tq의 에피소드 워커와 narrator-tq의 목 narrator
 export KOSHCHEI_PICASSO=mock
 ./gradlew :host:run
 
-# terminal 2: the control plane on 127.0.0.1:18190 (/api/episodes…)
+# 터미널 2: 127.0.0.1:18190의 HTTP API (/api/episodes…)
 ./gradlew :api:run
 
-# terminal 3: the Episodes screen on http://localhost:5174
+# 터미널 3: http://localhost:5174의 에피소드 화면
 cd ui && npm install && npm run dev
 ```
 
-Paths inside `--args` must be single-quoted (`'…'`); Gradle splits `--args` on spaces but honours quotes, and a checkout path may contain a space. In Git Bash, `$PWD` is a `/c/...` path, which the JVM reads as a different path; use `$(pwd -W)`, which gives `C:/...`. The command passes `--key koshchei-demo-1` so the workflow id `ep:koshchei-demo-1` cannot meet an episode opened by koshei from the same sample bundle on a shared Temporal server.
+`--args` 안의 경로는 작은따옴표(`'…'`)로 감싸야 합니다. Gradle은 `--args`를 공백 기준으로 나누되 따옴표는 인식하며, 체크아웃 경로에 공백이 있을 수 있습니다. Git Bash의 `$PWD`는 `/c/...` 형식이라 JVM이 다른 경로로 읽습니다. `C:/...` 형식을 반환하는 `$(pwd -W)`를 사용하세요. 아래 명령은 `--key koshchei-demo-1`을 지정하므로, 워크플로 ID `ep:koshchei-demo-1`이 공용 Temporal 서버에서 koshei가 같은 샘플 번들로 연 에피소드와 충돌하지 않습니다.
 
 ```bash
-# terminal 4: open one episode from the committed sample export
+# 터미널 4: 커밋된 샘플 내보내기에서 에피소드 하나 열기
 # Linux / macOS
 ./gradlew :host:cli --args="open --export '$PWD/runtime/src/test/resources/picasso/run-1' --search search-1 --key koshchei-demo-1"
 
-# Git Bash on Windows
+# Windows의 Git Bash
 ./gradlew :host:cli --args="open --export '$(pwd -W)/runtime/src/test/resources/picasso/run-1' --search search-1 --key koshchei-demo-1"
 ```
 
 ```powershell
-# terminal 4, PowerShell
+# 터미널 4, PowerShell
 ./gradlew :host:cli --args="open --export '$PWD\runtime\src\test\resources\picasso\run-1' --search search-1 --key koshchei-demo-1"
 ```
 
-Set the same `KOSHCHEI_PICASSO` in every shell that starts the worker or the watcher: each process reads only its own environment. With `KOSHCHEI_PICASSO=mock`, remedies reach no robot; the worker prints a warning at start. The `:host:cli` task runs with `host/` as its working directory, so the bundle path must be absolute. After episode opening, go to http://localhost:5174; under policy table v1 the episode waits for an operator's approval before dispatching to the mock approval client, and because no watcher runs in this quickstart, no job response arrives: an operator confirms the outcome or the evidence deadline (10 minutes in policy table v1) hands the episode to an operator. The full guide, including the watcher and the live approval endpoint, is `docs/usage.md`.
+워커나 감시자를 시작하는 모든 셸에 같은 `KOSHCHEI_PICASSO` 값을 설정하세요. 각 프로세스는 자기 환경 변수만 읽습니다. `KOSHCHEI_PICASSO=mock`이면 조치가 로봇에 전달되지 않으며, 워커가 시작할 때 경고를 출력합니다. `:host:cli` 태스크는 `host/`를 작업 디렉터리로 사용하므로 번들 경로는 절대 경로여야 합니다. 에피소드를 연 뒤 http://localhost:5174에 접속하세요. 정책 테이블 v1에서는 운영자가 승인해야 목 승인 클라이언트로 디스패치합니다. 이 빠른 시작에서는 감시자를 실행하지 않으므로 작업 응답이 도착하지 않습니다. 운영자가 실행 결과를 확인하거나, 완료 증빙 제한 시간(정책 테이블 v1에서 10분)이 지나면 에피소드를 운영자에게 인계합니다. 감시자와 실환경 실행용 승인 엔드포인트를 포함한 전체 가이드는 `docs/usage.md`에 있습니다.
 
-## Tests
+## 테스트
 
 ```bash
-./gradlew test          # 705 tests: core 323, runtime 311 (1 skipped), host 29, api 42
+./gradlew test          # 테스트 705개: core 323, runtime 311 (1개 건너뜀), host 29, api 42
 
 cd ui
-npm install             # first time only
-npm test                # Vitest: 41 tests
-npm run test:e2e        # Playwright: a warmup step, then 20 tests (stop npm run dev first; needs Google Chrome)
+npm install             # 최초 실행 시에만 필요
+npm test                # Vitest: 테스트 41개
+npm run test:e2e        # Playwright: 준비 단계 후 테스트 20개 (먼저 npm run dev 중지, Google Chrome 필요)
 ```
 
-`./gradlew test` runs 705 tests with 0 failures and 1 skipped, where the skipped one is the generator of the committed replay histories that runs only when asked. The runtime tests replay nine committed workflow histories (`runtime/src/test/resources/replay/2026-10-04/`), recorded before the split, against the renamed code, while database tests use Testcontainers (`postgres:16`) and require Docker to be running. The UI end-to-end tests stub `/api/episodes` in the page; there is no end-to-end test against a running backend.
+`./gradlew test`는 테스트 705개를 실행하며 실패는 0개, 건너뛴 테스트는 1개입니다. 건너뛴 테스트는 커밋된 재생 이력을 생성하는 용도로, 명시적으로 요청할 때만 실행합니다. runtime 테스트는 분리 이전에 기록하고 커밋한 워크플로 이력 9개(`runtime/src/test/resources/replay/2026-10-04/`)를 명칭이 변경된 코드로 재생합니다. 데이터베이스 테스트는 Testcontainers(`postgres:16`)를 사용하므로 Docker가 실행 중이어야 합니다. UI 엔드투엔드 테스트는 페이지에서 `/api/episodes`를 스텁으로 대체합니다. 실행 중인 백엔드를 대상으로 하는 엔드투엔드 테스트는 없습니다.
 
-## Scope and limitations
+## 범위와 한계
 
-The following points define the limits and live verification history of koshchei as a single-machine proof of concept.
+아래 항목은 단일 머신 개념 증명인 koshchei의 한계와 실환경 검증 이력을 정리한 것입니다.
 
-- Two live runs occurred in koshei before the split: on 2026-10-03, one live diagnosis through narrator and khala on `narrator-tq` verified 13 of 13 citations and narrator recommended ESCALATE, so the episode went to an operator; on 2026-10-04, one live run against picasso's reference host: an operator approved a remedy, picasso answered APPROVED, and the linked JobResponse moved the episode to UNKNOWN_OUTCOME because it carried `operatorRequired`.
-- There is no deployment host yet. It will live in a separate deployment repository; until then the test peer is picasso's reference host.
-- With the live approval endpoint, revalidation is always UNKNOWN (there is no live ledger read), so an operator confirms each precondition before a dispatch.
-- What DONE should mean (the remedy done, or the whole job order done) is an open decision (design §19 F). Today a job-order-level `operatorRequired` keeps an episode in UNKNOWN_OUTCOME even when every approved unit completed.
-- The approval endpoint is loopback-only, so koshchei has to run on the same machine as picasso's host.
-- Out of scope for now: policy table management (git + DB pointer + CLI), `SAGA_ACTION` remedies and child sagas, the full audit record fields and quality-history links, a screen for the watcher log, and a read-only database role for the HTTP API.
-- The HTTP API has no authentication. It listens on `127.0.0.1` unless `KOSHCHEI_BIND_ADDRESS` says otherwise.
+- 분리 이전 koshei에서 실환경 실행을 두 번 수행했습니다. 2026-10-03에는 `narrator-tq`를 통해 narrator와 khala를 사용하는 진단을 한 번 실행했습니다. 인용 13개 중 13개가 검증되었고 narrator가 ESCALATE를 권고하여 에피소드를 운영자에게 인계했습니다. 2026-10-04에는 picasso의 참조 호스트를 대상으로 한 번 실행했습니다. 운영자가 조치를 승인하고 picasso가 APPROVED로 응답했지만, 연결된 JobResponse에 `operatorRequired`가 있어 에피소드가 UNKNOWN_OUTCOME으로 전이했습니다.
+- 배포용 호스트는 아직 없습니다. 별도 배포 저장소에 둘 예정이며, 그때까지는 picasso의 참조 호스트를 테스트 상대 시스템으로 사용합니다.
+- 실환경 실행용 승인 엔드포인트에서는 picasso 기록의 최신 상태를 조회하지 않으므로 재검증 결과가 항상 UNKNOWN입니다. 따라서 디스패치 전에 운영자가 각 사전 조건을 확인합니다.
+- DONE이 조치 완료를 뜻해야 하는지, 작업 지시 전체의 완료를 뜻해야 하는지는 미결 사항입니다(설계 §19 F). 현재는 승인된 실행 단계가 모두 완료되어도 작업 지시 수준의 `operatorRequired`가 있으면 에피소드가 UNKNOWN_OUTCOME에 머뭅니다.
+- 승인 엔드포인트는 루프백에서만 접근할 수 있으므로 koshchei는 picasso 호스트와 같은 머신에서 실행해야 합니다.
+- 현재 범위 외 항목: 정책 테이블 관리(git + DB 포인터 + CLI), `SAGA_ACTION` 조치와 하위 사가, 감사 기록의 전체 필드와 품질 이력 연결, 감시 로그 화면, HTTP API용 읽기 전용 데이터베이스 역할.
+- HTTP API에는 인증이 없습니다. `KOSHCHEI_BIND_ADDRESS`로 다른 주소를 지정하지 않으면 `127.0.0.1`에서 수신합니다.
 
-## Docs
+## 문서
 
-- [`docs/usage.md`](docs/usage.md) — how to run, configure and operate it: environment variables, worker modes, the policy table file, the watcher, the HTTP API, the database role.
-- [`docs/design/2026-09-27-episode-outer-loop-design.md`](docs/design/2026-09-27-episode-outer-loop-design.md) — the design, in Korean: state machine, transition table, watcher, audit records, implementation log (§16) and open decisions (§19). It was written while the code lived in koshei, so its body says koshei.
-- [`docs/plans/`](docs/plans/) — the implementation plans, in Korean, from plan B1 to plan D-lite, and the plan for this split. The plans other than the split plan were written while the code lived in koshei, so they use koshei's module, package and path names.
+- [`docs/usage.md`](docs/usage.md) — 실행, 설정, 운영 방법: 환경 변수, 워커 모드, 정책 테이블 파일, 감시자, HTTP API, 데이터베이스 역할.
+- [`docs/design/2026-09-27-episode-outer-loop-design.md`](docs/design/2026-09-27-episode-outer-loop-design.md) — 한국어 설계 문서: 상태기계, 전이 표, 감시자, 감사 기록, 구현 기록(§16), 미결 사항(§19). 코드가 koshei에 있던 시기에 작성하여 본문에는 koshei라는 이름을 사용합니다.
+- [`docs/plans/`](docs/plans/) — 계획 B1부터 계획 D-lite까지의 한국어 구현 계획과 이번 분리 계획. 분리 계획을 제외한 나머지는 코드가 koshei에 있던 시기에 작성하여 koshei의 모듈, 패키지, 경로 이름을 사용합니다.
 
-## License
+## 라이선스
 
-koshchei is licensed under the PolyForm Noncommercial License 1.0.0; see [`LICENSE.md`](LICENSE.md). Noncommercial use is permitted; commercial use is reserved. It is a source-available license, not an OSI open-source license.
+koshchei에는 PolyForm Noncommercial License 1.0.0이 적용됩니다. [`LICENSE.md`](LICENSE.md)를 참조하세요. 비상업적 사용은 허용하며, 상업적 사용 권리는 유보합니다. 소스 공개 라이선스이며, OSI 오픈소스 라이선스는 아닙니다.
 
 Copyright © 2026 LivingLikeKrillin (livinglikekrillin@gmail.com).
