@@ -19,13 +19,13 @@ Ports and the database changed with the split: Postgres 15432 → 15433 (databas
 
 ```mermaid
 flowchart LR
-  PX["picasso export<br/>(incidents, remedy searches)"] --> W["watcher<br/>(:host:watcher)"]
+  PX["picasso bundle<br/>(incidents, remedy searches)"] --> W["watcher<br/>(:host:watcher)"]
   W -->|symptom| EP["episode workflow<br/>(:runtime around :core)"]
-  EP <-->|"diagnose on narrator-tq"| N["narrator"]
-  H["person<br/>(Episodes screen, :api)"] -->|"approve / confirm"| EP
-  EP -->|"POST /approvals"| PW["picasso approval window"]
+  EP <-->|"diagnose activity on narrator-tq"| N["narrator"]
+  H["operator<br/>(episodes screen, :api)"] -->|"approve / confirm"| EP
+  EP -->|"POST /approvals"| PW["picasso approval endpoint"]
   PW -.->|"JobResponse<br/>(ResultExport schema 1)"| W
-  W -->|evidence| EP
+  W -->|job response| EP
 ```
 
 - **Symptoms in.** A watcher process (`:host:watcher`) reads picasso's exported incident lines and remedy-search lines and signals them into episodes. Policy table v1 has one correlation rule: a robot's search line and incident line on the same job order become one episode.
