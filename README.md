@@ -21,13 +21,13 @@ koshchei는 로봇 셀에서 발생한 단일 고장을 첫 증상부터 최종 
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/flow.dark.svg">
-  <img alt="picasso 번들의 인시던트 줄과 조치 탐색 기록을 감시자가 읽어 에피소드 워크플로에 증상으로 전달합니다. 에피소드 워크플로는 narrator-tq의 diagnose 액티비티로 narrator와 진단 요청과 응답을 주고받고, 에피소드 화면의 운영자는 승인과 확인을 전달합니다. 워크플로는 picasso 승인 엔드포인트에 POST /approvals를 보내며, 엔드포인트의 JobResponse(ResultExport 스키마 1)는 감시자를 거쳐 작업 응답으로 워크플로에 돌아옵니다." src="docs/diagrams/flow.svg">
+  <img alt="picasso 번들의 인시던트 줄과 조치 탐색 기록을 감시기가 읽어 에피소드 워크플로에 증상으로 전달합니다. 에피소드 워크플로는 narrator-tq의 diagnose 액티비티로 narrator와 진단 요청과 응답을 주고받고, 에피소드 화면의 운영자는 승인과 확인을 전달합니다. 워크플로는 picasso 승인 엔드포인트에 POST /approvals를 보내며, 엔드포인트의 JobResponse(ResultExport 스키마 1)는 감시기를 거쳐 작업 응답으로 워크플로에 돌아옵니다." src="docs/diagrams/flow.svg">
 </picture>
 
-- **증상 수신.** 감시자 프로세스(`:host:watcher`)가 picasso에서 내보낸 인시던트 줄과 조치 탐색 기록을 읽어 에피소드에 신호로 전달합니다. 정책 테이블 v1에는 상관 규칙이 하나 있습니다. 같은 로봇의 조치 탐색 기록과 인시던트 줄이 같은 작업 지시에 속하면 하나의 에피소드로 묶습니다.
+- **증상 수신.** 감시기 프로세스(`:host:watcher`)가 picasso에서 내보낸 인시던트 줄과 조치 탐색 기록을 읽어 에피소드에 신호로 전달합니다. 정책 테이블 v1에는 상관 규칙이 하나 있습니다. 같은 로봇의 조치 탐색 기록과 인시던트 줄이 같은 작업 지시에 속하면 하나의 에피소드로 묶습니다.
 - **진단.** narrator는 Temporal 큐 `narrator-tq`에서 응답합니다(진단 계약 0.6). 조치를 직접 서술하지 않고 koshchei가 계산한 후보 가운데 하나를 가리킵니다. 후보 안의 권고이면서 검증된 인용이 최소 하나 있을 때만 승인 요청으로 이어집니다. 그 밖의 결과(근거 없음, 인용 없음, ESCALATE 권고, 계약 위반)는 운영자에게 인계합니다.
 - **승인과 디스패치.** 운영자가 조치를 승인합니다. 정책 테이블 v1에서는 자동 승인을 꺼 둡니다. 코어는 사전 조건을 재검증하고 디스패치 의도 기록을 남긴 뒤에야 picasso 승인 엔드포인트(`POST /approvals`, `KOSHCHEI_PICASSO=picasso`) 또는 목 승인 클라이언트(`KOSHCHEI_PICASSO=mock`)로 디스패치합니다.
-- **해결.** picasso의 작업 응답은 감시자를 거쳐 돌아옵니다. 승인된 실행 단계가 모두 완료되고, 의심 상태인 항목이 없으며, 로봇의 연결 상태가 ONLINE일 때만 에피소드가 DONE이 됩니다. 그렇지 않으면 UNKNOWN에 머물거나 운영자에게 인계합니다.
+- **해결.** picasso의 작업 응답은 감시기를 거쳐 돌아옵니다. 승인된 실행 단계가 모두 완료되고, 의심 상태인 항목이 없으며, 로봇의 연결 상태가 ONLINE일 때만 에피소드가 DONE이 됩니다. 그렇지 않으면 UNKNOWN에 머물거나 운영자에게 인계합니다.
 - **인터페이스.** HTTP API `/api/episodes…`(`:api`, 포트 18190), `ui/`의 에피소드 화면(Vite 개발 서버 포트 5174), 개발자 CLI(`:host:cli`, `open`과 `agent-off <workflowId>|--all`)를 제공합니다.
 
 ## 예제로 보는 picasso 번들과 에피소드
@@ -36,7 +36,7 @@ picasso 번들은 조치 탐색 기록과 인시던트 줄을 담아 picasso가 
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/bundle.dark.svg">
-  <img alt="번들에서 에피소드로 이어지는 두 경로. picasso가 쓰는 run-1/ 번들에는 manifest.json, remedy-searches.jsonl, incidents.jsonl이 있으며, manifest에는 runId와 incidents 9줄·remedySearches 4줄의 counts가 있다. 조치 탐색 기록 search-1은 로봇 hum-02, 작업 지시 PATROL-1, 결과 FOUND이고, incident-1도 같은 로봇과 작업 지시의 인시던트다. 위쪽 경로에서 :host:cli open --search search-1은 search-1만 전달하여 ep:koshchei-demo-1을 연다. 아래쪽 경로에서 감시자 :host:watcher는 robotId + jobOrderId가 일치하는 search-1과 incident-1을 상관하여 하나의 에피소드를 연다. 번들 밖의 job-responses.jsonl은 나중에 도착하며 점선 화살표로 감시자에게 전달된다. 실선은 증상 전달, 점선은 나중에 도착하는 작업 응답, 왼쪽 영역은 번들의 세 파일을 나타낸다. manifest 원문은 에피소드와 진단 요청에 포함되고, 해석하지 않는 필드도 원문으로 보존되어 증상 목록에 표시된다." src="docs/diagrams/bundle.svg">
+  <img alt="번들에서 에피소드로 이어지는 두 경로. picasso가 쓰는 run-1/ 번들에는 manifest.json, remedy-searches.jsonl, incidents.jsonl이 있으며, manifest에는 runId와 incidents 9줄·remedySearches 4줄의 counts가 있다. 조치 탐색 기록 search-1은 로봇 hum-02, 작업 지시 PATROL-1, 결과 FOUND이고, incident-1도 같은 로봇과 작업 지시의 인시던트다. 위쪽 경로에서 :host:cli open --search search-1은 search-1만 전달하여 ep:koshchei-demo-1을 연다. 아래쪽 경로에서 감시기 :host:watcher는 robotId + jobOrderId가 일치하는 search-1과 incident-1을 상관하여 하나의 에피소드를 연다. 번들 밖의 job-responses.jsonl은 나중에 도착하며 점선 화살표로 감시기에게 전달된다. 실선은 증상 전달, 점선은 나중에 도착하는 작업 응답, 왼쪽 영역은 번들의 세 파일을 나타낸다. manifest 원문은 에피소드와 진단 요청에 포함되고, 해석하지 않는 필드도 원문으로 보존되어 증상 목록에 표시된다." src="docs/diagrams/bundle.svg">
 </picture>
 
 커밋된 샘플은 `runtime/src/test/resources/picasso/run-1/`에 있습니다. koshchei는 LedgerExport 스키마 `"5"`를 읽고, `counts`에 지정된 줄 수만큼 각 파일의 앞부분을 읽습니다. 아래 JSON은 샘플에서 읽는 필드만 남긴 예입니다.
@@ -55,13 +55,13 @@ picasso 번들은 조치 탐색 기록과 인시던트 줄을 담아 picasso가 
 {"incidentId":"incident-1","jobOrderId":"PATROL-1","executionId":"exec-2","robotId":"hum-02","unitId":"remedy-1-pick_place","at":"2026-09-06T00:00:02Z","unresolved":false,"observation":{"linkBroken":false,"lateEvents":[],"progressObservable":true,"progressStalled":false},"verification":"NOT_REQUESTED","resolution":null,"digest":"d04ac2a20a63afc2ba147218bae871ef69746c990e3993deb00cfb4ddd262143"}
 ```
 
-`incident-1`은 실행 단계 `remedy-1-pick_place`에서 `00:00:02`에 발생한 인시던트이며, 원문의 `failureClass`는 `PAYLOAD_LOST`입니다. 에피소드 이벤트의 `eventId`는 `incident:<runId>:<digest>`입니다. 별도 작업 응답은 ResultExport 스키마 1의 JobResponse 하나가 한 줄을 차지하며, 감시자는 `jobOrderId`로 전달할 에피소드를 찾습니다. `run-1`에는 작업 응답이 없습니다.
+`incident-1`은 실행 단계 `remedy-1-pick_place`에서 `00:00:02`에 발생한 인시던트이며, 원문의 `failureClass`는 `PAYLOAD_LOST`입니다. 에피소드 이벤트의 `eventId`는 `incident:<runId>:<digest>`입니다. 별도 작업 응답은 ResultExport 스키마 1의 JobResponse 하나가 한 줄을 차지하며, 감시기는 `jobOrderId`로 전달할 에피소드를 찾습니다. `run-1`에는 작업 응답이 없습니다.
 
 에피소드는 입력 증상을 바탕으로 진단·승인·실행 결과 확인을 추적하는 단위입니다. 아래 빠른 시작은 `KOSHCHEI_PICASSO=mock`, 기본값인 `KOSHCHEI_NARRATOR=mock`, 정책 테이블 v1을 사용합니다.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/episode.dark.svg">
-  <img alt="빠른 시작 에피소드의 페이즈와 결정 경로. 주 경로는 CORRELATING에서 5초 상관 대기 후 DIAGNOSING으로 진행하고, narrator-tq 진단 호출에서 목 narrator가 APPROVE_REMEDY:hum-02:PATROL-1:pick_place를 권고한다. AWAITING_APPROVAL은 APPROVAL_NEEDED 알림을 보내고 5분 동안 기다린다. 운영자가 승인하면 REVALIDATING에서 사전 조건을 재검증하여 목 응답 TRUE를 받고, DISPATCH_PENDING에서 디스패치 의도 기록을 먼저 남긴 뒤 DISPATCHED에서 목 승인 클라이언트의 APPROVED · mock-exec-1 응답을 받는다. AWAITING_EVIDENCE는 완료 증빙을 10분 동안 기다리며, 빠른 시작에는 감시자가 없다. 운영자의 DONE 확인은 종료 상태 RESOLVED로, NOT DONE 확인은 DIAGNOSING으로 이어진다. 승인 거절도 DIAGNOSING으로 돌아간다. 승인 대기 5분 또는 증빙 대기 10분이 만료되면 ESCALATED로 운영자 인계되며, 운영자가 닫거나 24시간이 지나면 종료 상태 CLOSED가 된다. 에피소드 전체 제한 시간 1시간이 만료되어도 ESCALATED로 전이하고, 이미 ESCALATED인 경우를 제외한 어느 페이즈에서든 제어권 인수는 ESCALATED로 이어진다. 일반 실선은 자동 진행, 빨간 화살표는 운영자 결정, 점선은 시간 만료를 나타내며, RESOLVED와 CLOSED는 종료 상태로 표시된다." src="docs/diagrams/episode.svg">
+  <img alt="빠른 시작 에피소드의 페이즈와 결정 경로. 주 경로는 CORRELATING에서 5초 상관 대기 후 DIAGNOSING으로 진행하고, narrator-tq 진단 호출에서 목 narrator가 APPROVE_REMEDY:hum-02:PATROL-1:pick_place를 권고한다. AWAITING_APPROVAL은 APPROVAL_NEEDED 알림을 보내고 5분 동안 기다린다. 운영자가 승인하면 REVALIDATING에서 사전 조건을 재검증하여 목 응답 TRUE를 받고, DISPATCH_PENDING에서 디스패치 의도 기록을 먼저 남긴 뒤 DISPATCHED에서 목 승인 클라이언트의 APPROVED · mock-exec-1 응답을 받는다. AWAITING_EVIDENCE는 완료 증빙을 10분 동안 기다리며, 빠른 시작에는 감시기가 없다. 운영자의 DONE 확인은 종료 상태 RESOLVED로, NOT DONE 확인은 DIAGNOSING으로 이어진다. 승인 거절도 DIAGNOSING으로 돌아간다. 승인 대기 5분 또는 증빙 대기 10분이 만료되면 ESCALATED로 운영자 인계되며, 운영자가 닫거나 24시간이 지나면 종료 상태 CLOSED가 된다. 에피소드 전체 제한 시간 1시간이 만료되어도 ESCALATED로 전이하고, 이미 ESCALATED인 경우를 제외한 어느 페이즈에서든 제어권 인수는 ESCALATED로 이어진다. 일반 실선은 자동 진행, 빨간 화살표는 운영자 결정, 점선은 시간 만료를 나타내며, RESOLVED와 CLOSED는 종료 상태로 표시된다." src="docs/diagrams/episode.svg">
 </picture>
 
 `open`의 `--key koshchei-demo-1`이 워크플로 ID를 정하고, CLI가 전달하는 에피소드 이벤트의 `eventId`는 `search:<runId>:search-1`입니다. `<runId>`는 샘플 manifest의 `runId`를 뜻합니다. `search-1`의 후보는 정확히 `["APPROVE_REMEDY:hum-02:PATROL-1:pick_place","ESCALATE"]`이며, 목 narrator는 `ESCALATE`가 아닌 첫 후보를 권고합니다. 다음은 응답의 필드를 줄인 예입니다.
@@ -86,8 +86,8 @@ picasso 번들은 조치 탐색 기록과 인시던트 줄을 담아 picasso가 
 | 모듈 | 구성 |
 |---|---|
 | `:core` | 순수 코어: 에피소드 상태기계, 전이 함수, 정책 테이블, 후보, 진단 요청과 판정. Jackson의 JSON 트리에만 의존합니다. |
-| `:runtime` | Temporal 셸: `EpisodeWorkflow`와 액티비티, 에피소드 테이블(`EpisodeStore`), 감시자 로직, 목 narrator 액티비티, 목 승인 클라이언트와 실환경 실행용 승인 클라이언트(`HttpApprovalClient`), `Db`. |
-| `:host` | 실행 프로세스: 에피소드 워커(`:host:run`), 감시자(`:host:watcher`), 개발자 CLI(`:host:cli`). |
+| `:runtime` | Temporal 셸: `EpisodeWorkflow`와 액티비티, 에피소드 테이블(`EpisodeStore`), 감시기 로직, 목 narrator 액티비티, 목 승인 클라이언트와 실환경 실행용 승인 클라이언트(`HttpApprovalClient`), `Db`. |
+| `:host` | 실행 프로세스: 에피소드 워커(`:host:run`), 감시기(`:host:watcher`), 개발자 CLI(`:host:cli`). |
 | `:api` | Spring Boot HTTP API. 포트 18190에서 `/api/episodes…`를 제공합니다(`:api:run`). |
 | `ui/` | Vite + React 기반 에피소드 화면. 개발 서버 포트는 5174이며, Gradle 모듈이 아닙니다. |
 
@@ -128,7 +128,7 @@ cd ui && npm install && npm run dev
 ./gradlew :host:cli --args="open --export '$PWD\runtime\src\test\resources\picasso\run-1' --search search-1 --key koshchei-demo-1"
 ```
 
-워커나 감시자를 시작하는 모든 셸에 같은 `KOSHCHEI_PICASSO` 값을 설정하세요. 각 프로세스는 자기 환경 변수만 읽습니다. `KOSHCHEI_PICASSO=mock`이면 조치가 로봇에 전달되지 않으며, 워커가 시작할 때 경고를 출력합니다. `:host:cli` 태스크는 `host/`를 작업 디렉터리로 사용하므로 번들 경로는 절대 경로여야 합니다. 에피소드를 연 뒤 http://localhost:5174에 접속하세요. 정책 테이블 v1에서는 운영자가 승인해야 목 승인 클라이언트로 디스패치합니다. 이 빠른 시작에서는 감시자를 실행하지 않으므로 작업 응답이 도착하지 않습니다. 운영자가 실행 결과를 확인하거나, 완료 증빙 제한 시간(정책 테이블 v1에서 10분)이 지나면 에피소드를 운영자에게 인계합니다. 감시자와 실환경 실행용 승인 엔드포인트를 포함한 전체 가이드는 `docs/usage.md`에 있습니다.
+워커나 감시기를 시작하는 모든 셸에 같은 `KOSHCHEI_PICASSO` 값을 설정하세요. 각 프로세스는 자기 환경 변수만 읽습니다. `KOSHCHEI_PICASSO=mock`이면 조치가 로봇에 전달되지 않으며, 워커가 시작할 때 경고를 출력합니다. `:host:cli` 태스크는 `host/`를 작업 디렉터리로 사용하므로 번들 경로는 절대 경로여야 합니다. 에피소드를 연 뒤 http://localhost:5174에 접속하세요. 정책 테이블 v1에서는 운영자가 승인해야 목 승인 클라이언트로 디스패치합니다. 이 빠른 시작에서는 감시기를 실행하지 않으므로 작업 응답이 도착하지 않습니다. 운영자가 실행 결과를 확인하거나, 완료 증빙 제한 시간(정책 테이블 v1에서 10분)이 지나면 에피소드를 운영자에게 인계합니다. 감시기와 실환경 실행용 승인 엔드포인트를 포함한 전체 가이드는 `docs/usage.md`에 있습니다.
 
 ## 테스트
 
@@ -157,8 +157,8 @@ npm run test:e2e        # Playwright: 준비 단계 후 테스트 20개 (먼저 
 
 ## 문서
 
-- [`docs/usage.md`](docs/usage.md) — 실행, 설정, 운영 방법: 환경 변수, 워커 모드, 정책 테이블 파일, 감시자, HTTP API, 데이터베이스 역할.
-- [`docs/design/2026-09-27-episode-outer-loop-design.md`](docs/design/2026-09-27-episode-outer-loop-design.md) — 한국어 설계 문서: 상태기계, 전이 표, 감시자, 감사 기록, 구현 기록(§16), 미결 사항(§19). 코드가 koshei에 있던 시기에 작성하여 본문에는 koshei라는 이름을 사용합니다.
+- [`docs/usage.md`](docs/usage.md) — 실행, 설정, 운영 방법: 환경 변수, 워커 모드, 정책 테이블 파일, 감시기, HTTP API, 데이터베이스 역할.
+- [`docs/design/2026-09-27-episode-outer-loop-design.md`](docs/design/2026-09-27-episode-outer-loop-design.md) — 한국어 설계 문서: 상태기계, 전이 표, 감시기, 감사 기록, 구현 기록(§16), 미결 사항(§19). 코드가 koshei에 있던 시기에 작성하여 본문에는 koshei라는 이름을 사용합니다.
 - [`docs/plans/`](docs/plans/) — 계획 B1부터 계획 D-lite까지의 한국어 구현 계획과 이번 분리 계획. 분리 계획을 제외한 나머지는 코드가 koshei에 있던 시기에 작성하여 koshei의 모듈, 패키지, 경로 이름을 사용합니다.
 
 ## 라이선스
