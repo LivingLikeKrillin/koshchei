@@ -32,7 +32,7 @@ class DiagnosisResponseFixturesTest {
         // Through the String entry point: the production path (the workflow hands the activity result over as text).
         val response = parseDiagnosisResponse(File(dir(), "responses/$name").readText(Charsets.UTF_8))
         assertIs<ResponseParse.Valid>(response, "$name does not read: $response")
-        return judgeDiagnosis(request, response)
+        return validateDiagnosis(request, response)
     }
 
     @Test fun `01 recommends the found remedy`() {

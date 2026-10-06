@@ -105,14 +105,14 @@ data class EpisodeRuntimeConfig(
 /**
  * Registers the episode workflow and its activities (design §4.1, §4.2). The caller starts the factory. [config]'s
  * [PicassoMode] decides whether anything is registered; [picasso] is the window used when it is (the configured window:
- * the Mock for `mock`, [HttpApprovalWindow] for `picasso`; a test may pass its own).
+ * the Mock for `mock`, [HttpApprovalClient] for `picasso`; a test may pass its own).
  */
 object EpisodeWorkers {
-    fun register(factory: WorkerFactory, config: EpisodeRuntimeConfig, store: EpisodeStore, picasso: ApprovalWindow? = null) {
+    fun register(factory: WorkerFactory, config: EpisodeRuntimeConfig, store: EpisodeStore, picasso: ApprovalClient? = null) {
         if (config.picasso == PicassoMode.OFF) return
         val window = picasso ?: when (config.picasso) {
-            PicassoMode.MOCK -> MockPicasso()
-            PicassoMode.PICASSO -> HttpApprovalWindow(checkNotNull(config.window) { "KOSHCHEI_PICASSO=picasso without window settings" })
+            PicassoMode.MOCK -> MockApprovalClient()
+            PicassoMode.PICASSO -> HttpApprovalClient(checkNotNull(config.window) { "KOSHCHEI_PICASSO=picasso without window settings" })
             PicassoMode.OFF -> error("unreachable")
         }
         factory.newWorker(

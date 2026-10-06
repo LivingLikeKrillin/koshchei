@@ -15,7 +15,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class HttpApprovalWindowTest {
+class HttpApprovalClientTest {
     private val received = CopyOnWriteArrayList<Pair<String, String>>()   // (method + path, body)
     @Volatile private var status = 200
     @Volatile private var answer = PICASSO_APPROVED
@@ -51,7 +51,7 @@ class HttpApprovalWindowTest {
     }
 
     private fun window(timeoutMs: Long = 2_000) =
-        HttpApprovalWindow(PicassoWindowConfig(URI("http://127.0.0.1:${server.address.port}/approvals"), "narrator-1", timeoutMs))
+        HttpApprovalClient(PicassoWindowConfig(URI("http://127.0.0.1:${server.address.port}/approvals"), "narrator-1", timeoutMs))
 
     private fun intent(approval: String = """{"by":"PERSON","approverId":"op-7","assurance":"HEADER","at":"2026-10-04T00:00:00Z"}""") = strictJson.readTree(
         """{"candidate":{"candidateId":"c-1","kind":"APPROVE_REMEDY","ref":{"robotId":"hum-02","jobOrderId":"PATROL-APPROVES","searchId":"search-1"},""" +
@@ -153,7 +153,7 @@ class HttpApprovalWindowTest {
     }
 
     @Test fun `a closed port is retried by the activity - a plain failure`() {
-        val closed = HttpApprovalWindow(PicassoWindowConfig(URI("http://127.0.0.1:${server.address.port}/approvals"), "a", 1_000))
+        val closed = HttpApprovalClient(PicassoWindowConfig(URI("http://127.0.0.1:${server.address.port}/approvals"), "a", 1_000))
         server.stop(0)
         val e = assertThrows<Exception> { closed.approve(intent(), "PERSON") }
         assertFalse(e is ApplicationFailure && e.isNonRetryable, "$e")

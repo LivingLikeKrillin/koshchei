@@ -30,7 +30,7 @@ class EpisodeWorkersTest {
 
     @Test fun `a remote narrator leaves narrator-tq to narrator's own worker, and the episode worker takes any approval window`() {
         val env = episodeEnvironment { }
-        val window = object : ApprovalWindow {
+        val window = object : ApprovalClient {
             override fun revalidate(candidateJson: String) = "UNKNOWN"
             override fun approve(intent: JsonNode, approverKind: String?) = error("not called")
         }

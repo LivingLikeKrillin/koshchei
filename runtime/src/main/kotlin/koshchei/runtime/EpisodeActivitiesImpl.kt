@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory
 class EpisodeActivitiesImpl(
     private val policy: PolicyFileReader,
     private val store: EpisodeStore,
-    private val picasso: ApprovalWindow,
+    private val picasso: ApprovalClient,
 ) : EpisodeActivities {
 
     override fun readPolicy(): PolicyReadResult = policy.read()

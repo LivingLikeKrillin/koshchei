@@ -46,7 +46,7 @@ class CurrentRun(val runId: String, val running: Boolean, val view: EpisodeView?
  * the check and the Update, so a run that continued as new in between refuses the Update rather than the next
  * episode taking it. An ended run is not queried: that needs a worker to replay it, and the records answer instead.
  */
-class EpisodeGateway(private val client: Lazy<WorkflowClient>, private val updateTimeout: Duration = Duration.ofSeconds(30)) : AutoCloseable {
+class EpisodeApi(private val client: Lazy<WorkflowClient>, private val updateTimeout: Duration = Duration.ofSeconds(30)) : AutoCloseable {
     private val updates = Executors.newCachedThreadPool { r -> Thread(r, "episode-update").apply { isDaemon = true } }
 
     fun current(workflowId: String): CurrentRun {

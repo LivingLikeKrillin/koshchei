@@ -19,8 +19,8 @@ class EpisodeLifecycleTest {
         val s = open()
         assertEquals(Phase.CORRELATING, s.state.phase)
         assertEquals(T0.plusMillis(3_600_000), s.timers(Timer.EPISODE).single().at)
-        assertEquals(T0.plusMillis(5_000), s.timers(Timer.STATE).single().at)
-        assertEquals(s.state.token, s.timers(Timer.STATE).single().token)
+        assertEquals(T0.plusMillis(5_000), s.timers(Timer.PHASE).single().at)
+        assertEquals(s.state.fencingToken, s.timers(Timer.PHASE).single().fencingToken)
         val records = s.commands.filterIsInstance<Command.Record>()
         assertEquals(listOf(RecordKind.OPENED, RecordKind.TRANSITION), records.map { it.entry.kind })
         assertEquals(listOf(1L, 2L), records.map { it.seq })
@@ -53,7 +53,7 @@ class EpisodeLifecycleTest {
         val bad = Symptom("search:bad", SymptomKind.SEARCH, mapper.createObjectNode().put("outcome", "FOUND"), T0)
         val line = open(bad)
         assertEquals(Escalation(EscalationReason.DIAGNOSIS_FAILED, "opening symptom: search line without searchId"), line.state.escalation)
-        val manifest = startEpisode(EpisodeEvent.Detected(INSTANCE, "{\"schemaVersion\":\"4\"}", Episodes.search("search-1")), policy(), T0)
+        val manifest = startEpisode(EpisodeEvent.Opened(INSTANCE, "{\"schemaVersion\":\"4\"}", Episodes.search("search-1")), policy(), T0)
         assertEquals(EscalationReason.DIAGNOSIS_FAILED, manifest.reason)
         assertTrue(manifest.state.escalation!!.detail!!.startsWith("snapshot:"))
     }
@@ -91,14 +91,14 @@ class EpisodeLifecycleTest {
     }
 
     @Test fun `the episode deadline and the agent-off broadcast escalate`() {
-        val expired = open().on(EpisodeEvent.DeadlineExpired(Timer.EPISODE, EPISODE_TOKEN), T0.plusMillis(3_600_000))
+        val expired = open().on(EpisodeEvent.DeadlineExpired(Timer.EPISODE, EPISODE_FENCING_TOKEN), T0.plusMillis(3_600_000))
         assertEquals(EscalationReason.EPISODE_EXPIRED, expired.reason)
         assertEquals(EscalationReason.AGENT_LAYER_OFF, open().on(EpisodeEvent.AgentOff, T0.plusSeconds(1)).reason)
     }
 
     @Test fun `a timer from an earlier phase is ignored`() {
         val s = open()
-        val stale = s.on(EpisodeEvent.DeadlineExpired(Timer.STATE, s.state.token - 1), T0.plusSeconds(5))
+        val stale = s.on(EpisodeEvent.DeadlineExpired(Timer.PHASE, s.state.fencingToken - 1), T0.plusSeconds(5))
         assertEquals(Phase.CORRELATING, stale.state.phase)
         assertEquals("stale timer", stale.records(RecordKind.IGNORED).single().entry.payload.get("why").textValue())
     }
@@ -136,9 +136,9 @@ class EpisodeLifecycleTest {
         assertEquals(EscalationReason.TAKEN_OVER, closed.reason)   // the reason survives the close
 
         val retention = escalated.timers(Timer.RETENTION).single()
-        val stale = escalated.on(EpisodeEvent.DeadlineExpired(Timer.RETENTION, retention.token - 1), retention.at)
+        val stale = escalated.on(EpisodeEvent.DeadlineExpired(Timer.RETENTION, retention.fencingToken - 1), retention.at)
         assertEquals(Phase.ESCALATED, stale.state.phase)
-        val unattended = escalated.on(EpisodeEvent.DeadlineExpired(Timer.RETENTION, retention.token), retention.at)
+        val unattended = escalated.on(EpisodeEvent.DeadlineExpired(Timer.RETENTION, retention.fencingToken), retention.at)
         assertEquals(Phase.CLOSED, unattended.state.phase)
         assertEquals("UNATTENDED", unattended.records(RecordKind.TRANSITION).single().entry.payload.get("detail").textValue())
     }
@@ -193,7 +193,7 @@ class EpisodeLifecycleTest {
         assertEquals(EscalationReason.TAKEN_OVER, s.reason)
         assertTrue(s.timers(Timer.RETENTION).isEmpty())
         assertTrue(s.notices().none { it.kind == NoticeKind.ESCALATED })
-        assertEquals(escalated.state.token, s.state.token)
+        assertEquals(escalated.state.fencingToken, s.state.fencingToken)
     }
 
     @Test fun `the diagnosis in flight is cancelled by agent-off, an off policy read and the episode deadline`() {
@@ -202,7 +202,7 @@ class EpisodeLifecycleTest {
         val off = d.on(EpisodeEvent.SymptomJoined(incident("incident-1")), T0.plusSeconds(10), read = policy { put("agentLayerEnabled", false) })
         assertTrue(off.commands.any { it is Command.CancelDiagnosis })
         assertEquals(EscalationReason.AGENT_LAYER_OFF, off.reason)
-        val expired = d.on(EpisodeEvent.DeadlineExpired(Timer.EPISODE, EPISODE_TOKEN), T0.plusMillis(3_600_000))
+        val expired = d.on(EpisodeEvent.DeadlineExpired(Timer.EPISODE, EPISODE_FENCING_TOKEN), T0.plusMillis(3_600_000))
         assertTrue(expired.commands.any { it is Command.CancelDiagnosis })
         val late = d.on(EpisodeEvent.SymptomJoined(incident("incident-1")), T0.plusMillis(3_600_000))
         assertTrue(late.commands.any { it is Command.CancelDiagnosis })

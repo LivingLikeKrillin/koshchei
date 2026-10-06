@@ -27,7 +27,7 @@ import java.util.concurrent.TimeoutException
  *
  * Thread-safe: [HttpClient] is, and nothing else is shared.
  */
-class HttpApprovalWindow(private val config: PicassoWindowConfig) : ApprovalWindow {
+class HttpApprovalClient(private val config: PicassoWindowConfig) : ApprovalClient {
     private val client: HttpClient = HttpClient.newBuilder()
         .proxy(HttpClient.Builder.NO_PROXY)   // loopback only: an approver id never goes through a configured proxy
         .connectTimeout(Duration.ofMillis(config.timeoutMs))

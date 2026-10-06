@@ -13,8 +13,8 @@ import org.springframework.context.annotation.Configuration
 @Configuration
 class EpisodeConfig {
     /** Closed with the context: its Update threads stop, and the stubs go if the client was ever made. */
-    @Bean(destroyMethod = "close") fun episodeGateway(): EpisodeGateway =
-        EpisodeGateway(lazy { WorkflowClient.newInstance(WorkflowServiceStubs.newLocalServiceStubs(), DataConverterSupport.clientOptions()) })
+    @Bean(destroyMethod = "close") fun episodeGateway(): EpisodeApi =
+        EpisodeApi(lazy { WorkflowClient.newInstance(WorkflowServiceStubs.newLocalServiceStubs(), DataConverterSupport.clientOptions()) })
 
     /** Read only (R14): the episode worker creates and writes the tables (design §13). */
     @Bean fun episodeReader(ds: HikariDataSource): EpisodeReader = EpisodeStore { ds.connection }

@@ -72,7 +72,7 @@ class RevalidatingTest {
         val r = revalidating()
         val s = r.revalidated(TriState.UNKNOWN, r.at.plusSeconds(1))
         assertEquals(Phase.UNKNOWN_PRECONDITION, s.state.phase)
-        assertEquals(r.at.plusSeconds(1).plusMillis(900_000), s.timers(Timer.STATE).single().at)
+        assertEquals(r.at.plusSeconds(1).plusMillis(900_000), s.timers(Timer.PHASE).single().at)
         assertEquals(r.at.plusSeconds(1).plusMillis(30_000), s.timers(Timer.RECHECK).single().at)
         assertEquals(Notice(NoticeKind.CONFIRM_PRECONDITION, Phase.UNKNOWN_PRECONDITION, null, REMEDY), s.notices().single())
     }
@@ -80,10 +80,10 @@ class RevalidatingTest {
     @Test fun `a recheck revalidates again, reschedules on UNKNOWN and records the intent on TRUE`() {
         val u = unknown()
         val recheck = u.timers(Timer.RECHECK).single()
-        val asked = u.on(EpisodeEvent.DeadlineExpired(Timer.RECHECK, recheck.token), recheck.at)
+        val asked = u.on(EpisodeEvent.DeadlineExpired(Timer.RECHECK, recheck.fencingToken), recheck.at)
         val again = asked.commands.filterIsInstance<Command.Revalidate>().single()
         assertEquals(REMEDY, again.candidate.candidateId)
-        assertEquals(asked.state.token, again.token)
+        assertEquals(asked.state.fencingToken, again.fencingToken)
         assertEquals(Phase.UNKNOWN_PRECONDITION, asked.state.phase)
         val still = asked.revalidated(TriState.UNKNOWN, recheck.at.plusSeconds(1))
         assertEquals(recheck.at.plusSeconds(1).plusMillis(30_000), still.timers(Timer.RECHECK).single().at)
@@ -129,7 +129,7 @@ class RevalidatingTest {
             val s = u.on(EpisodeEvent.ConfirmedPrecondition(REMEDY, "$INSTANCE#1", holds = true, by = OPERATOR, proposition = proposition), t)
             assertEquals(Reply.REFUSED_NO_PROPOSITION, s.reply, "proposition=$proposition")
             assertEquals(Phase.UNKNOWN_PRECONDITION, s.state.phase)
-            assertEquals(u.state.token, s.state.token)
+            assertEquals(u.state.fencingToken, s.state.fencingToken)
             assertEquals("no proposition (design §8.3)", s.records(RecordKind.IGNORED).single().entry.payload.get("why").textValue())
             assertTrue(s.records(RecordKind.CONFIRMATION).isEmpty() && s.records(RecordKind.REVALIDATION).isEmpty())
             assertTrue(s.commands.none { it is Command.RecordIntent || it is Command.Revalidate || it is Command.SetTimer })
@@ -176,7 +176,7 @@ class RevalidatingTest {
 
     @Test fun `a late revalidation result from an earlier phase is ignored`() {
         val r = revalidating()
-        val stale = r.on(EpisodeEvent.Revalidated(TriState.TRUE, r.state.token - 1), r.at.plusSeconds(1))
+        val stale = r.on(EpisodeEvent.Revalidated(TriState.TRUE, r.state.fencingToken - 1), r.at.plusSeconds(1))
         assertEquals(Phase.REVALIDATING, stale.state.phase)
         assertEquals("stale revalidation", stale.records(RecordKind.IGNORED).single().entry.payload.get("why").textValue())
     }
@@ -221,7 +221,7 @@ class RevalidatingTest {
 
     @Test fun `a stale revalidation result while the precondition is unknown is ignored`() {
         val u = unknown()
-        val stale = u.on(EpisodeEvent.Revalidated(TriState.TRUE, u.state.token - 1), u.state.enteredAt.plusSeconds(1))
+        val stale = u.on(EpisodeEvent.Revalidated(TriState.TRUE, u.state.fencingToken - 1), u.state.enteredAt.plusSeconds(1))
         assertEquals(Phase.UNKNOWN_PRECONDITION, stale.state.phase)
         assertEquals("stale revalidation", stale.records(RecordKind.IGNORED).single().entry.payload.get("why").textValue())
     }
@@ -230,7 +230,7 @@ class RevalidatingTest {
         val long = Episodes.policy { (get("deadlines") as ObjectNode).put("approvalValidityMs", 3_600_000) }
         val r = open(read = long).expireState().answer()
         assertEquals(Phase.REVALIDATING, r.state.phase)
-        val s = r.on(EpisodeEvent.Revalidated(TriState.TRUE, r.state.token), r.state.episodeDeadline!!.plusSeconds(1))
+        val s = r.on(EpisodeEvent.Revalidated(TriState.TRUE, r.state.fencingToken), r.state.episodeDeadline!!.plusSeconds(1))
         assertEquals(EscalationReason.EPISODE_EXPIRED, s.reason)
         assertTrue(s.commands.none { it is Command.RecordIntent })
     }
@@ -238,7 +238,7 @@ class RevalidatingTest {
     @Test fun `an approval stays valid only as long as the table said when it was given`() {
         val r = revalidating()   // POLICY approval under the 600 s table
         val longer = Episodes.policy { (get("deadlines") as ObjectNode).put("approvalValidityMs", 3_000_000) }
-        val s = r.on(EpisodeEvent.Revalidated(TriState.TRUE, r.state.token), r.at.plusSeconds(700), longer)
+        val s = r.on(EpisodeEvent.Revalidated(TriState.TRUE, r.state.fencingToken), r.at.plusSeconds(700), longer)
         assertEquals(Phase.DIAGNOSING, s.state.phase)
         assertEquals("APPROVAL_LAPSED", s.records(RecordKind.REDIAGNOSE).single().entry.payload.get("reason").textValue())
         assertTrue(s.commands.none { it is Command.RecordIntent })
@@ -247,7 +247,7 @@ class RevalidatingTest {
     @Test fun `an approval is also cut short by a table that shortens the validity`() {
         val r = revalidating()
         val shorter = Episodes.policy { (get("deadlines") as ObjectNode).put("approvalValidityMs", 100_000) }
-        val s = r.on(EpisodeEvent.Revalidated(TriState.TRUE, r.state.token), r.at.plusSeconds(200), shorter)
+        val s = r.on(EpisodeEvent.Revalidated(TriState.TRUE, r.state.fencingToken), r.at.plusSeconds(200), shorter)
         assertEquals(Phase.DIAGNOSING, s.state.phase)
     }
 }

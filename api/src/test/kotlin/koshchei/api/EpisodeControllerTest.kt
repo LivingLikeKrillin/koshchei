@@ -47,7 +47,7 @@ private fun <T> anyNonNull(): T { ArgumentMatchers.any<T>(); @Suppress("UNCHECKE
 @WebMvcTest(EpisodeController::class)
 class EpisodeControllerTest {
     @Autowired lateinit var mvc: MockMvc
-    @MockBean lateinit var gateway: EpisodeGateway
+    @MockBean lateinit var gateway: EpisodeApi
     @MockBean lateinit var reader: EpisodeReader
 
     private val t = Instant.parse("2026-10-02T00:00:00Z")

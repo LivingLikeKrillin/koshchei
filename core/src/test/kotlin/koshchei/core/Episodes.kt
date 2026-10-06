@@ -40,19 +40,19 @@ internal object Episodes {
     }
 
     fun open(first: Symptom = search("search-1"), read: PolicyRead = policy(), now: Instant = T0): Step =
-        startEpisode(EpisodeEvent.Detected(INSTANCE, PicassoRun1.manifest, first), read, now)
+        startEpisode(EpisodeEvent.Opened(INSTANCE, PicassoRun1.manifest, first), read, now)
 }
 
 internal fun Step.on(event: EpisodeEvent, now: Instant, read: PolicyRead? = null): Step = transition(state, event, read, now)
 
-/** Fires the current phase's STATE timer at its deadline. */
+/** Fires the current phase's PHASE timer at its deadline. */
 internal fun Step.expireState(read: PolicyRead? = null): Step =
-    on(EpisodeEvent.DeadlineExpired(Timer.STATE, state.token), state.stateDeadline ?: error("no STATE timer in ${state.phase}"), read)
+    on(EpisodeEvent.DeadlineExpired(Timer.PHASE, state.fencingToken), state.stateDeadline ?: error("no STATE timer in ${state.phase}"), read)
 
 internal val Step.request: DiagnosisRequest get() = state.attempt?.request ?: error("no attempt in ${state.phase}")
 
 /** A `revalidate` result for the current phase (the token its command carried). */
-internal fun Step.revalidated(result: TriState, now: Instant): Step = on(EpisodeEvent.Revalidated(result, state.token), now)
+internal fun Step.revalidated(result: TriState, now: Instant): Step = on(EpisodeEvent.Revalidated(result, state.fencingToken), now)
 
 /** narrator's answer to the current request, one minute after DIAGNOSING began. A clean RECOMMENDED by default. */
 internal fun Step.answer(
@@ -123,4 +123,4 @@ internal fun dispatched(first: Symptom = Episodes.search("search-1"), read: Poli
 
 /** The dispatch result for the current phase (the token its command carried). */
 internal fun Step.returned(result: DispatchResult, now: Instant = state.enteredAt.plusSeconds(2)): Step =
-    on(EpisodeEvent.DispatchReturned(result, state.token), now)
+    on(EpisodeEvent.DispatchReturned(result, state.fencingToken), now)

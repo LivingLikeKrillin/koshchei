@@ -12,7 +12,7 @@ class DiagnosisVerdictsTest {
     private val req04 = Responses.request04()
 
     private fun judge(req: DiagnosisRequest, node: com.fasterxml.jackson.databind.node.ObjectNode) =
-        judgeDiagnosis(req, parseDiagnosisResponse(node))
+        validateDiagnosis(req, parseDiagnosisResponse(node))
 
     private fun escalation(v: DiagnosisVerdict): DiagnosisEscalation {
         assertIs<DiagnosisVerdict.Escalate>(v)
@@ -49,20 +49,20 @@ class DiagnosisVerdictsTest {
     @Test fun `an unreadable string keeps its wire text on the verdict`() {
         val wire = Responses.forRequest(req01).toString()
         val dup = "{\"candidateId\":\"ESCALATE\"," + wire.substring(1)
-        val v = judgeDiagnosis(req01, parseDiagnosisResponse(dup))
+        val v = validateDiagnosis(req01, parseDiagnosisResponse(dup))
         assertIs<DiagnosisVerdict.Escalate>(v)
         assertEquals(DiagnosisEscalation.DIAGNOSIS_FAILED, v.reason)
         assertNull(v.response)
         assertEquals(dup, v.rawText)
 
-        val readable = judgeDiagnosis(req01, parseDiagnosisResponse(Responses.forRequest(req01, outcome = "NO_GROUNDS").toString()))
+        val readable = validateDiagnosis(req01, parseDiagnosisResponse(Responses.forRequest(req01, outcome = "NO_GROUNDS").toString()))
         assertIs<DiagnosisVerdict.Escalate>(readable)
         assertNull(readable.rawText, "rawText is only for an unreadable response")
     }
 
     @Test fun `an escalation never prints the payload`() {
         val wire = Responses.forRequest(req01) { put("outcome", "MAYBE") }.toString()
-        val v = judgeDiagnosis(req01, parseDiagnosisResponse(wire))
+        val v = validateDiagnosis(req01, parseDiagnosisResponse(wire))
         assertIs<DiagnosisVerdict.Escalate>(v)
         assertEquals("Escalate(DIAGNOSIS_FAILED, picked=null, detail=${v.detail})", v.toString())
         assertFalse("결품 대응 절차" in v.toString())
@@ -169,7 +169,7 @@ class DiagnosisVerdictsTest {
             d.contractVersion, d.episodeId, d.attempt, d.outcome, null, d.picked, d.sawCandidatesVersion, d.rationale, d.card,
             d.cause, d.citations, d.unverifiedClaims, d.uncitedSentences, d.versions, d.elapsedSeconds, d.raw,
         )
-        assertEquals(DiagnosisEscalation.DIAGNOSIS_FAILED, escalation(judgeDiagnosis(req01, ResponseParse.Valid(broken))))
+        assertEquals(DiagnosisEscalation.DIAGNOSIS_FAILED, escalation(validateDiagnosis(req01, ResponseParse.Valid(broken))))
     }
 
     @Test fun `an unreadable or foreign response is a failed diagnosis`() {

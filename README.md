@@ -46,7 +46,7 @@ flowchart LR
 | Module | What it holds |
 |---|---|
 | `:core` | The pure core: episode state machine, transition function, policy table, candidates, diagnosis request and diagnosis validation. Depends only on Jackson's JSON tree. |
-| `:runtime` | The Temporal shell: `EpisodeWorkflow`, its activities, the episode tables (`EpisodeStore`), the watcher's logic, the mock narrator activities, the mock approval client and the live (`HttpApprovalWindow`) approval client, `Db`. |
+| `:runtime` | The Temporal shell: `EpisodeWorkflow`, its activities, the episode tables (`EpisodeStore`), the watcher's logic, the mock narrator activities, the mock approval client and the live (`HttpApprovalClient`) approval client, `Db`. |
 | `:host` | The processes: the episode worker (`:host:run`), the watcher (`:host:watcher`), the developer CLI (`:host:cli`). |
 | `:api` | The Spring Boot HTTP API, `/api/episodes…` on port 18190 (`:api:run`). |
 | `ui/` | The episodes screen, Vite + React, dev server on port 5174. Not a Gradle module. |

@@ -133,7 +133,7 @@ class EpisodePropertiesTest {
                 }
                 is EpisodeEvent.DispatchReturned -> {
                     val (instanceId, executionId, approved) = approvedExecution(event)
-                    val kept = before.bufferedEvidence
+                    val kept = before.bufferedJobResponses
                     val should = kept.none { linked(it, instanceId, executionId) && !clean(it) } &&
                         kept.any { resolves(it, instanceId, executionId, approved) }
                     assertEquals(should, resolved, "the answer resolved=$resolved with kept $kept")
@@ -142,7 +142,7 @@ class EpisodePropertiesTest {
             }
         }
         if (rnd.nextBoolean()) repeat(rnd.nextInt(4)) { advance(EpisodeEvent.EvidenceArrived(report())) }
-        advance(EpisodeEvent.DispatchReturned(DispatchResult.Answer(PicassoAnswers.approved(execution, instance, units)), step.state.token))
+        advance(EpisodeEvent.DispatchReturned(DispatchResult.Answer(PicassoAnswers.approved(execution, instance, units)), step.state.fencingToken))
         var sent = 0
         while (sent < maxReports && !step.state.phase.terminal && step.state.phase != Phase.ESCALATED) {
             advance(EpisodeEvent.EvidenceArrived(report()))
@@ -162,7 +162,7 @@ class EpisodePropertiesTest {
         var step: Step
         var lastSeq: Long
         if (!directed) {
-            step = startEpisode(EpisodeEvent.Detected(Episodes.INSTANCE, PicassoRun1.manifest, f.first()), f.startPolicy(), now)
+            step = startEpisode(EpisodeEvent.Opened(Episodes.INSTANCE, PicassoRun1.manifest, f.first()), f.startPolicy(), now)
             lastSeq = check(null, null, step, 0, run, stats)
         } else {
             step = Episodes.open(Episodes.search("search-1"), Episodes.policy(), now)
@@ -173,12 +173,12 @@ class EpisodePropertiesTest {
                 lastSeq = check(before, event, step, lastSeq, run, stats)
                 now = at
             }
-            advance(EpisodeEvent.DeadlineExpired(Timer.STATE, step.state.token), step.state.stateDeadline!!)
+            advance(EpisodeEvent.DeadlineExpired(Timer.PHASE, step.state.fencingToken), step.state.stateDeadline!!)
             val offered = step.request.candidates.first { it.kind != CandidateKind.ESCALATE }.candidateId
             advance(EpisodeEvent.DiagnosisReturned(Responses.forRequest(step.request, "RECOMMENDED", offered).toString()), step.state.enteredAt.plusSeconds(60))
-            advance(EpisodeEvent.Revalidated(TriState.TRUE, step.state.token), step.state.enteredAt.plusSeconds(1))
+            advance(EpisodeEvent.Revalidated(TriState.TRUE, step.state.fencingToken), step.state.enteredAt.plusSeconds(1))
             advance(EpisodeEvent.Recorded(step.state.attempt!!.intentSeq!!), step.state.enteredAt.plusSeconds(1))
-            advance(EpisodeEvent.DispatchReturned(DispatchResult.Answer(PicassoAnswers.approved()), step.state.token), step.state.enteredAt.plusSeconds(2))
+            advance(EpisodeEvent.DispatchReturned(DispatchResult.Answer(PicassoAnswers.approved()), step.state.fencingToken), step.state.enteredAt.plusSeconds(2))
             advance(
                 EpisodeEvent.EvidenceArrived(jobResponse("jr-start", inDoubt = listOf("u-1"), unverified = listOf("u-2"))),
                 step.state.enteredAt.plusSeconds(5),
@@ -201,9 +201,9 @@ class EpisodePropertiesTest {
             val s = step.state
             val deadline = s.stateDeadline
             val (event, at) = when {
-                s.phase == Phase.ESCALATED -> EpisodeEvent.DeadlineExpired(Timer.RETENTION, s.token) to now.plusSeconds(172_800)
-                deadline != null -> EpisodeEvent.DeadlineExpired(Timer.STATE, s.token) to maxOf(now, deadline)
-                else -> EpisodeEvent.DeadlineExpired(Timer.EPISODE, EPISODE_TOKEN) to maxOf(now, s.episodeDeadline ?: now)
+                s.phase == Phase.ESCALATED -> EpisodeEvent.DeadlineExpired(Timer.RETENTION, s.fencingToken) to now.plusSeconds(172_800)
+                deadline != null -> EpisodeEvent.DeadlineExpired(Timer.PHASE, s.fencingToken) to maxOf(now, deadline)
+                else -> EpisodeEvent.DeadlineExpired(Timer.EPISODE, EPISODE_FENCING_TOKEN) to maxOf(now, s.episodeDeadline ?: now)
             }
             now = at
             step = transition(s, event, null, now)
@@ -269,8 +269,8 @@ class EpisodePropertiesTest {
                 val (instanceId, executionId, units) = approvedExecution(event)
                 assertFalse("$instanceId/$executionId" in before.usedExecutions, "RESOLVED on an answer whose execution was used before: $event")
                 assertTrue(
-                    before.bufferedEvidence.any { resolves(it, instanceId, executionId, units) },
-                    "RESOLVED on an answer with no kept report that completes it: $event, kept ${before.bufferedEvidence}",
+                    before.bufferedJobResponses.any { resolves(it, instanceId, executionId, units) },
+                    "RESOLVED on an answer with no kept report that completes it: $event, kept ${before.bufferedJobResponses}",
                 )
                 stats.replayResolved++
             }
@@ -385,7 +385,7 @@ class EpisodePropertiesTest {
             assertEquals(Phase.DISPATCH_PENDING, before?.phase, "Dispatch outside DISPATCH_PENDING after $event")
             assertTrue(event is EpisodeEvent.Recorded && event.seq == before?.attempt?.intentSeq, "Dispatch without this attempt's Recorded: $event")
             assertTrue(keys.add(d.intent.idempotencyKey), "second Dispatch for ${d.intent.idempotencyKey}")
-            if (d.intent.candidate.executionClass) {
+            if (d.intent.candidate.physicalAction) {
                 assertTrue(unknownNow.isEmpty(), "execution Dispatch while unknown: $unknownNow")
                 if (oracle(s, emptyList()).isNotEmpty()) stats.unblocked++
             }
@@ -397,7 +397,7 @@ class EpisodePropertiesTest {
         for (i in step.commands.filterIsInstance<Command.RecordIntent>()) {
             assertTrue(before?.phase == Phase.REVALIDATING || before?.phase == Phase.UNKNOWN_PRECONDITION, "intent from ${before?.phase}")
             assertEquals(Phase.DISPATCH_PENDING, s.phase)
-            if (i.intent.candidate.executionClass) assertTrue(unknownNow.isEmpty(), "execution intent while unknown: $unknownNow")
+            if (i.intent.candidate.physicalAction) assertTrue(unknownNow.isEmpty(), "execution intent while unknown: $unknownNow")
         }
         // Every wait with a deadline of its own has one (design §5.1).
         if (s.phase in OWN_DEADLINE) assertNotNull(s.stateDeadline, "${s.phase} without a deadline after $event")

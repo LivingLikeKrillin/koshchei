@@ -13,7 +13,7 @@ import java.nio.file.StandardOpenOption
  * adds text as it is, as an appending host caught mid-write would. Tests mix in what a real host will send: reports
  * before the answer, reports of other executions and instances, and the same report twice.
  */
-internal class MockCarrier(val dir: Path, val instanceId: String = MockPicasso.INSTANCE) {
+internal class MockCarrier(val dir: Path, val instanceId: String = MockApprovalClient.INSTANCE) {
     private val mapper = ObjectMapper()
     private val lines = mutableListOf<String>()
 

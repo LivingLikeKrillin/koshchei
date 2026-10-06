@@ -12,7 +12,7 @@ enum class DiagnosisEscalation {
 }
 
 /**
- * The judge's verdict. Only [judgeDiagnosis] (and code in this module) can build one, so holding a [Proposed] means every
+ * The judge's verdict. Only [validateDiagnosis] (and code in this module) can build one, so holding a [Proposed] means every
  * check passed. Both variants carry the response they were judged from, so the next layer can record versions,
  * rationale, card and citations without pairing the parse and the verdict again.
  *
@@ -75,7 +75,7 @@ sealed interface DiagnosisVerdict {
  *
  * and only then [DiagnosisVerdict.Proposed].
  */
-fun judgeDiagnosis(request: DiagnosisRequest, parse: ResponseParse): DiagnosisVerdict {
+fun validateDiagnosis(request: DiagnosisRequest, parse: ResponseParse): DiagnosisVerdict {
     val response = when (parse) {
         is ResponseParse.Invalid -> return DiagnosisVerdict.Escalate(
             DiagnosisEscalation.DIAGNOSIS_FAILED, null, unreadable = parse.raw, rawText = parse.rawText,
@@ -111,7 +111,7 @@ fun judgeDiagnosis(request: DiagnosisRequest, parse: ResponseParse): DiagnosisVe
             val candidate = request.candidates.firstOrNull { it.candidateId == id }
             when {
                 candidate == null -> escalate(DiagnosisEscalation.OUT_OF_CANDIDATES, picked = id)
-                candidate.executionClass && request.unknowns.isNotEmpty() -> escalate(DiagnosisEscalation.UNKNOWN_BLOCKS_EXECUTION)
+                candidate.physicalAction && request.unknowns.isNotEmpty() -> escalate(DiagnosisEscalation.UNKNOWN_BLOCKS_EXECUTION)
                 else -> DiagnosisVerdict.Proposed(candidate, response.clean, response)
             }
         }

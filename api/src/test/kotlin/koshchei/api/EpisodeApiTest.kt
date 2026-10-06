@@ -26,7 +26,7 @@ import koshchei.runtime.EpisodeView
 import koshchei.runtime.EpisodeWorkflow
 import koshchei.runtime.EpisodeWorkflowImpl
 import koshchei.runtime.MockNarratorActivities
-import koshchei.runtime.MockPicasso
+import koshchei.runtime.MockApprovalClient
 import koshchei.runtime.NARRATOR_TASK_QUEUE
 import koshchei.runtime.PolicyFileReader
 import koshchei.runtime.PolicyReadResult
@@ -49,7 +49,7 @@ import kotlin.test.fail
 /** Activities for the gateway test: the committed v1 policy (auto-approval off), Mock picasso, no records. */
 private class TestActivities : EpisodeActivities {
     private val policy = PolicyFileReader(Path.of(System.getProperty("koshchei.repoRoot"), "policy", "active.yaml"))
-    private val picasso = MockPicasso()
+    private val picasso = MockApprovalClient()
     private val json = ObjectMapper()
     /** When set, `dispatch` waits on it: the run stays DISPATCHED and, once ended, drains (design §7.1). */
     @Volatile var dispatchGate: CountDownLatch? = null
@@ -87,9 +87,9 @@ private class TroubleInterceptor : WorkerInterceptorBase() {
         }
 }
 
-class EpisodeGatewayTest {
+class EpisodeApiTest {
     private lateinit var env: TestWorkflowEnvironment
-    private lateinit var gateway: EpisodeGateway
+    private lateinit var gateway: EpisodeApi
     private val acts = TestActivities()
     private val json = ObjectMapper()
 
@@ -105,7 +105,7 @@ class EpisodeGatewayTest {
         }
         env.newWorker(NARRATOR_TASK_QUEUE).registerActivitiesImplementations(MockNarratorActivities())
         env.start()
-        gateway = EpisodeGateway(lazyOf(env.workflowClient))
+        gateway = EpisodeApi(lazyOf(env.workflowClient))
     }
 
     @AfterEach fun down() = env.close()
@@ -207,7 +207,7 @@ class EpisodeGatewayTest {
     @Test fun `an Update past its bound is a timeout whose outcome is unknown - the decision may still land`() {
         open(SLOW)
         val v = until(SLOW) { it.phase == "AWAITING_APPROVAL" }
-        val quick = EpisodeGateway(lazyOf(env.workflowClient), Duration.ofSeconds(3))
+        val quick = EpisodeApi(lazyOf(env.workflowClient), Duration.ofSeconds(3))
         val started = System.nanoTime()
         val e = assertThrows<EpisodeTimeout> { quick.decide(v.instanceId, DecideRequest(v.proposalId!!, v.candidatesVersion!!, true, "op-1")) }
         assertEquals(v.instanceId, e.instanceId)
@@ -263,7 +263,7 @@ class EpisodeGatewayTest {
     }
 
     @Test fun `closing the gateway stops its Update threads and leaves a client it never made alone`() {
-        val untouched = EpisodeGateway(lazy<WorkflowClient> { fail("closing must not make a client") })
+        val untouched = EpisodeApi(lazy<WorkflowClient> { fail("closing must not make a client") })
         untouched.close()
         open("ep:g9")
         val v = until("ep:g9") { it.phase == "AWAITING_APPROVAL" }
@@ -273,7 +273,7 @@ class EpisodeGatewayTest {
         val stubs = WorkflowServiceStubs.newServiceStubs(WorkflowServiceStubsOptions.newBuilder().setTarget("127.0.0.1:1").build())
         val made = lazy { WorkflowClient.newInstance(stubs) }
         made.value
-        EpisodeGateway(made).close()
+        EpisodeApi(made).close()
         assertTrue(stubs.isShutdown)
     }
 }

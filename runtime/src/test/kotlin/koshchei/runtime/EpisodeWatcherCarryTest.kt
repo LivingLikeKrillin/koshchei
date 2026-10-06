@@ -44,7 +44,7 @@ class EpisodeWatcherCarryTest {
     }
 
     @Test fun `a report for no known order is logged, not lost silently`() {
-        carrier.report("resp-9", "NOPE", "exec-9").raw("""{"schemaVersion":"1","instanceId":"${MockPicasso.INSTANCE}","jobResponseId":"resp-10"}""").snapshot()
+        carrier.report("resp-9", "NOPE", "exec-9").raw("""{"schemaVersion":"1","instanceId":"${MockApprovalClient.INSTANCE}","jobResponseId":"resp-10"}""").snapshot()
         assertEquals(2, watcher().pollOnce().evidence)
         assertEquals(emptyList(), signals.evidence)
         assertEquals(2, watch.logs(10).count { it.kind == "UNROUTED" })
@@ -59,7 +59,7 @@ class EpisodeWatcherCarryTest {
     }
 
     @Test fun `a broken line stops the carry there`() {
-        carrier.report("resp-1", "PATROL-1", "exec-2").raw("""{"schemaVersion":"1","instanceId":"${MockPicasso.INSTANCE}","jobResponseId":"resp-2","jobOrderId":"PATROL-1","inDoubtUnits":"u"}""")
+        carrier.report("resp-1", "PATROL-1", "exec-2").raw("""{"schemaVersion":"1","instanceId":"${MockApprovalClient.INSTANCE}","jobResponseId":"resp-2","jobOrderId":"PATROL-1","inDoubtUnits":"u"}""")
             .report("resp-3", "PATROL-1", "exec-2").snapshot()
         val w = watcher()
         assertEquals(1, w.pollOnce().evidence)
@@ -70,7 +70,7 @@ class EpisodeWatcherCarryTest {
 
     @Test fun `a line of another schema stops the carry there - and is said once`() {
         carrier.report("resp-1", "PATROL-1", "exec-2")
-            .raw("""{"schemaVersion":"2","instanceId":"${MockPicasso.INSTANCE}","jobResponseId":"resp-2","jobOrderId":"PATROL-1"}""")
+            .raw("""{"schemaVersion":"2","instanceId":"${MockApprovalClient.INSTANCE}","jobResponseId":"resp-2","jobOrderId":"PATROL-1"}""")
             .report("resp-3", "PATROL-1", "exec-2").snapshot()
         val w = watcher()
         assertEquals(1, w.pollOnce().evidence)
@@ -86,13 +86,13 @@ class EpisodeWatcherCarryTest {
         carrier.report("resp-1", "PATROL-1", "exec-2", connection = "CONNECTION_STATE_OFFLINE").snapshot()
         watcher().pollOnce()
         val s = signals.evidence.first().second
-        assertEquals(MockPicasso.INSTANCE, s.picassoInstanceId)
+        assertEquals(MockApprovalClient.INSTANCE, s.picassoInstanceId)
         assertEquals("CONNECTION_STATE_OFFLINE", s.connection)
     }
 
     @Test fun `a half-written last line waits for its newline`() {
         carrier.report("resp-1", "PATROL-1", "exec-2").snapshot()
-            .append("""{"schemaVersion":"1","instanceId":"${MockPicasso.INSTANCE}","jobResponseId":"resp-2","jobOrderId":"PAT""")
+            .append("""{"schemaVersion":"1","instanceId":"${MockApprovalClient.INSTANCE}","jobResponseId":"resp-2","jobOrderId":"PAT""")
         val w = watcher()
         assertEquals(1, w.pollOnce().evidence)
         assertEquals(0, w.pollOnce().evidence, "not a line yet")
@@ -130,7 +130,7 @@ class EpisodeWatcherCarryTest {
         carrier.report("resp-3", "PATROL-1", "exec-2").snapshot()   // the first instance's file again, one line longer
         assertEquals(1, w.pollOnce().evidence)
         assertEquals(listOf("resp-3", "resp-3"), signals.evidence.takeLast(2).map { it.second.jobResponseId })
-        assertEquals(MockPicasso.INSTANCE, signals.evidence.last().second.picassoInstanceId)
+        assertEquals(MockApprovalClient.INSTANCE, signals.evidence.last().second.picassoInstanceId)
         assertEquals(8, signals.evidence.size, "resp-1 and resp-2, mw-other's resp-1, then resp-3 - each to both episodes")
         assertEquals(emptyList(), watch.logs(10).filter { it.kind == "STUCK" })
     }
@@ -146,7 +146,7 @@ class EpisodeWatcherCarryTest {
         assertEquals(1, stuck.size, "$stuck")
         val d = strictJson.readTree(stuck.single().detailJson)
         assertEquals(2, d.get("position").intValue(), "$d")
-        assertEquals(MockPicasso.INSTANCE, d.get("runId").textValue(), "$d")
+        assertEquals(MockApprovalClient.INSTANCE, d.get("runId").textValue(), "$d")
         assertEquals(4, signals.evidence.size)
     }
 
@@ -184,7 +184,7 @@ class EpisodeWatcherCarryTest {
         assertEquals(0, w.pollOnce().evidence)
         // keyed by line and kind of failure, not by its text
         val failed = strictJson.readTree(watch.logs(10).single { it.kind == "SIGNAL_FAILED" }.detailJson)
-        assertEquals(listOf("2", "${MockPicasso.INSTANCE}/resp-2", "ep:a/r1"), listOf("position", "id", "instanceId").map { failed.get(it).asText() }, "$failed")
+        assertEquals(listOf("2", "${MockApprovalClient.INSTANCE}/resp-2", "ep:a/r1"), listOf("position", "id", "instanceId").map { failed.get(it).asText() }, "$failed")
         assertEquals(1, watcher().pollOnce().evidence, "only resp-2 is sent again")
         assertEquals(listOf("resp-1", "resp-1", "resp-2", "resp-2"), signals.evidence.map { it.second.jobResponseId })
     }

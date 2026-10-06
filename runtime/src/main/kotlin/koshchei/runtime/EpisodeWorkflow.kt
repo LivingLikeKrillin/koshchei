@@ -142,7 +142,7 @@ class EpisodeWorkflowImpl : EpisodeWorkflow {
         // The episode opens on this line, so it takes the line's own manifest when the watcher sent one.
         val manifest = line.manifestJson?.takeUnless { it.isBlank() } ?: start.manifestJson
         openedManifest = manifest
-        apply(startEpisode(EpisodeEvent.Detected(instanceId(), manifest, line.toSymptom()), read, now()))
+        apply(startEpisode(EpisodeEvent.Opened(instanceId(), manifest, line.toSymptom()), read, now()))
         // No yield since `state` was set, so nothing has reached the inbox ahead of these.
         inbox.addAll(preOpen)
         preOpen.clear()
@@ -230,13 +230,13 @@ class EpisodeWorkflowImpl : EpisodeWorkflow {
             Command.CancelDiagnosis -> diagnosis?.cancel()
             is Command.Revalidate -> report(
                 Async.function { activities(command.timeoutMs).revalidate(command.candidate.toJson().toString()) },
-                failed = { EpisodeEvent.Revalidated(TriState.UNKNOWN, command.token) },
-            ) { result -> EpisodeEvent.Revalidated(triState(result), command.token) }
+                failed = { EpisodeEvent.Revalidated(TriState.UNKNOWN, command.fencingToken) },
+            ) { result -> EpisodeEvent.Revalidated(triState(result), command.fencingToken) }
             is Command.SetTimer -> {
                 // Timers are never cancelled: one that outlives its phase is expected, and the core ignores it by its token.
                 val delay = maxOf(1L, command.at.toEpochMilli() - Workflow.currentTimeMillis())
                 Workflow.newTimer(Duration.ofMillis(delay)).thenApply {
-                    inbox.addLast(Inbound(EpisodeEvent.DeadlineExpired(command.which, command.token), decision = true))
+                    inbox.addLast(Inbound(EpisodeEvent.DeadlineExpired(command.which, command.fencingToken), decision = true))
                 }
             }
             is Command.Notify -> notice(noticeJson(command.notice))
@@ -272,8 +272,8 @@ class EpisodeWorkflowImpl : EpisodeWorkflow {
                 report(
                     Async.function { activities(command.timeoutMs).dispatch(id, intentJson(command.intent), command.approverKind) },
                     // Why it failed (the application's cause, through a timeout too), not the activity wrapper's text.
-                    failed = { EpisodeEvent.DispatchReturned(DispatchResult.Uncertain(dispatchFailureDetail(it)), command.token) },
-                ) { outcome -> EpisodeEvent.DispatchReturned(checkNotNull(outcome) { "dispatch answered null" }.toResult(), command.token) }
+                    failed = { EpisodeEvent.DispatchReturned(DispatchResult.Uncertain(dispatchFailureDetail(it)), command.fencingToken) },
+                ) { outcome -> EpisodeEvent.DispatchReturned(checkNotNull(outcome) { "dispatch answered null" }.toResult(), command.fencingToken) }
             }
         }
     }

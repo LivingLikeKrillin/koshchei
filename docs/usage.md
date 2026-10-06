@@ -96,8 +96,8 @@ The variable `KOSHCHEI_PICASSO` selects the approval client implementation.
 | Value | What runs |
 |---|---|
 | `off` (default) | Nothing: the worker refuses to start, and so does the watcher |
-| `mock` | The episode worker on `koshchei-episode-tq` with the test mock approval client (`MockPicasso`, in the worker's memory). Remedies reach no robot; the worker prints a warning at start |
-| `picasso` | The episode worker with the live approval client, `HttpApprovalWindow`: `POST /approvals` on `KOSHCHEI_PICASSO_URL` (loopback only), approvals sent as PERSON, or as AGENT under `KOSHCHEI_PICASSO_AGENT_ID` |
+| `mock` | The episode worker on `koshchei-episode-tq` with the test mock approval client (`MockApprovalClient`, in the worker's memory). Remedies reach no robot; the worker prints a warning at start |
+| `picasso` | The episode worker with the live approval client, `HttpApprovalClient`: `POST /approvals` on `KOSHCHEI_PICASSO_URL` (loopback only), approvals sent as PERSON, or as AGENT under `KOSHCHEI_PICASSO_AGENT_ID` |
 
 The variable `KOSHCHEI_NARRATOR` designates which component handles the diagnose activity. The default setting `mock` runs an in-process stand-in that selects the first offered remedy candidate other than ESCALATE and supplies a grounded rationale with citations. Setting this variable to `remote` leaves the Temporal task queue `narrator-tq` to narrator's independent worker process under diagnosis contract 0.6 using the activity `diagnose`.
 
@@ -186,11 +186,11 @@ The `:api` process hosts the HTTP API on port 18190, binding to loopback by defa
 |---|---|
 | `GET /api/episodes?limit=` | episode ids (`limit` 1..500, default 50) |
 | `GET /api/episodes/notices?after=&limit=` | the operator notice feed, in id order (`limit` 1..500, default 100) |
-| `GET /api/episodes/{workflowId}/{run}` | audit records, operator notices, and while the run is live its live view and operator card |
-| `POST /api/episodes/{workflowId}/{run}/decide` | approve or reject an approval request |
-| `POST /api/episodes/{workflowId}/{run}/confirm` | confirm a precondition, an outcome or an unobserved condition |
-| `POST /api/episodes/{workflowId}/{run}/takeover` | an operator takes the episode over |
-| `POST /api/episodes/{workflowId}/{run}/close` | close an escalated episode |
+| `GET /api/episodes/{workflowId}/{originalRunId}` | audit records, operator notices, and while the run is live its live view and operator card |
+| `POST /api/episodes/{workflowId}/{originalRunId}/decide` | approve or reject an approval request |
+| `POST /api/episodes/{workflowId}/{originalRunId}/confirm` | confirm a precondition, an outcome or an unobserved condition |
+| `POST /api/episodes/{workflowId}/{originalRunId}/takeover` | an operator takes the episode over |
+| `POST /api/episodes/{workflowId}/{originalRunId}/close` | close an escalated episode |
 
 All `POST` endpoints require the operator's identity in an `X-Koshchei-Operator` HTTP request header, with a maximum length of 128 characters. Request payloads must be valid JSON; the endpoints reject unexpected or duplicate JSON fields, and payloads exceeding 64 KiB receive an HTTP 413 response. The HTTP API implements no authentication mechanism (see the security note in §2). The web interface in `ui/` presents the episode list view, the detail panel (showing the operator card, the four decision controls, attempt history, candidates, and audit records), and the live operator notice feed. The interface stores the active operator name locally in the browser under `koshchei.operator`.
 
@@ -216,7 +216,7 @@ A refusal by the core is still a 200 with the refusal in `reply`; only the statu
 | `close` | `outcome` (required, free text) |
 | `takeover` | none |
 
-`proposalId` and `candidatesVersion` come from the `view` in `GET /api/episodes/{workflowId}/{run}`; the body field is `sawCandidatesVersion`.
+`proposalId` and `candidatesVersion` come from the `view` in `GET /api/episodes/{workflowId}/{originalRunId}`; the body field is `sawCandidatesVersion`.
 
 ```bash
 curl -s -X POST "http://127.0.0.1:18190/api/episodes/ep:koshchei-demo-1/<run>/decide" \

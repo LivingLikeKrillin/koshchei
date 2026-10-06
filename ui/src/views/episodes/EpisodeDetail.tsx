@@ -1,4 +1,4 @@
-// EpisodeDetail = the middle pane of the Episodes screen. Polls GET /api/episodes/{workflowId}/{run} (~1.5s) and
+// EpisodeDetail = the middle pane of the Episodes screen. Polls GET /api/episodes/{workflowId}/{originalRunId} (~1.5s) and
 // shows the head, the operator card, the decisions the card and the live phase offer, and the folded history,
 // candidates and records. The server decides: a refusal or a failure is only said in the operator's words.
 // It never renders view.diagnosisJson, never sends a proposition, and shows records through recordPayload

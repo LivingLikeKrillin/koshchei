@@ -47,7 +47,7 @@ class TemporalEpisodeSignals(private val client: WorkflowClient) : EpisodeSignal
     }
 
     /**
-     * As the control plane sends an Update (the api module's `EpisodeGateway`): describe, a stub pinned to that run, check,
+     * As the control plane sends an Update (the api module's `EpisodeApi`): describe, a stub pinned to that run, check,
      * send on that run. A closed episode whose run is still draining (status RUNNING, design §7.1) still holds its
      * instance: it accepts the evidence and this returns true, but the workflow only records it (IGNORED).
      */
