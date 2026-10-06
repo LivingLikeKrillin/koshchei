@@ -25,7 +25,7 @@ class DiagnosingTest {
         assertEquals(INSTANCE, d.request.episodeId)
         assertEquals(listOf(REMEDY, "ESCALATE"), d.request.candidates.map { it.candidateId })
         assertEquals(1_200_000, d.budget.scheduleToCloseMs)
-        assertTrue(s.timers(Timer.STATE).isEmpty())   // the activity's own ScheduleToClose is DIAGNOSING's deadline
+        assertTrue(s.timers(Timer.PHASE).isEmpty())   // the activity's own ScheduleToClose is DIAGNOSING's deadline
         assertEquals(1, s.records(RecordKind.DIAGNOSIS_REQUESTED).size)
     }
 
@@ -67,7 +67,7 @@ class DiagnosingTest {
         val s = diagnosing.answer()
         assertEquals(Phase.AWAITING_APPROVAL, s.state.phase)
         assertEquals("AWAITING_APPROVAL", s.records(RecordKind.PROPOSED).single().entry.payload.get("route").textValue())
-        assertEquals(diagnosing.state.enteredAt.plusSeconds(60).plusMillis(300_000), s.timers(Timer.STATE).single().at)
+        assertEquals(diagnosing.state.enteredAt.plusSeconds(60).plusMillis(300_000), s.timers(Timer.PHASE).single().at)
         assertEquals(Notice(NoticeKind.APPROVAL_NEEDED, Phase.AWAITING_APPROVAL, null, REMEDY), s.notices().single())
     }
 

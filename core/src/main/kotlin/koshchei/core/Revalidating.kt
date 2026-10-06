@@ -4,7 +4,7 @@ import java.time.Instant
 
 internal fun Out.onRevalidating(event: EpisodeEvent, policy: PolicyTable, now: Instant) {
     when {
-        event is EpisodeEvent.Revalidated && event.token == state.token -> onPrecondition(event.result, "REVALIDATE", policy, now)
+        event is EpisodeEvent.Revalidated && event.fencingToken == state.fencingToken -> onPrecondition(event.result, "REVALIDATE", policy, now)
         event is EpisodeEvent.Revalidated -> ignore(event, "stale revalidation")
         else -> ignore(event, "revalidating")
     }
@@ -19,7 +19,7 @@ internal fun Out.onUnknownPrecondition(event: EpisodeEvent, policy: PolicyTable,
     val candidate = attempt?.candidate
         ?: return escalate(now, Escalation(EscalationReason.DIAGNOSIS_FAILED, "internal: no proposed candidate"))
     when {
-        event is EpisodeEvent.Revalidated && event.token == state.token -> onPrecondition(event.result, "REVALIDATE", policy, now)
+        event is EpisodeEvent.Revalidated && event.fencingToken == state.fencingToken -> onPrecondition(event.result, "REVALIDATE", policy, now)
         event is EpisodeEvent.Revalidated -> ignore(event, "stale revalidation")
         // The same remedy can be proposed again by a later attempt: a card from the earlier one must not decide this one.
         event is EpisodeEvent.ConfirmedPrecondition && event.candidateId == candidate.candidateId && event.proposalId != attempt.proposalId -> {
@@ -46,9 +46,9 @@ internal fun Out.onUnknownPrecondition(event: EpisodeEvent, policy: PolicyTable,
         }
         event is EpisodeEvent.DeadlineExpired && event.which == Timer.RECHECK -> {
             record(RecordKind.RECHECK) { put("candidateId", candidate.candidateId) }
-            commands += Command.Revalidate(candidate, policy.deadlines.revalidateMs, state.token)
+            commands += Command.Revalidate(candidate, policy.deadlines.revalidateMs, state.fencingToken)
         }
-        event is EpisodeEvent.DeadlineExpired && event.which == Timer.STATE ->
+        event is EpisodeEvent.DeadlineExpired && event.which == Timer.PHASE ->
             escalate(now, Escalation(EscalationReason.UNKNOWN_UNRESOLVED, "precondition of ${candidate.candidateId}"))
         else -> ignore(event, "precondition unknown")
     }
@@ -89,7 +89,7 @@ private fun Out.onPrecondition(result: TriState, source: String, policy: PolicyT
 private fun Out.recheckTimer(policy: PolicyTable, now: Instant) {
     val next = now.plusMillis(policy.deadlines.unknownRecheckMs)
     val at = state.stateDeadline?.let { minOf(next, it) } ?: next
-    commands += Command.SetTimer(Timer.RECHECK, at, state.token)
+    commands += Command.SetTimer(Timer.RECHECK, at, state.fencingToken)
 }
 
 /**
@@ -101,7 +101,7 @@ private fun Out.recheckTimer(policy: PolicyTable, now: Instant) {
  * of defence after the projection). Returns true when the attempt may go on; otherwise the episode has already moved
  * (a new diagnosis, back to a person, or ESCALATED).
  */
-internal fun Out.passesDispatchGate(policy: PolicyTable, now: Instant): Boolean {
+internal fun Out.canDispatch(policy: PolicyTable, now: Instant): Boolean {
     val attempt = state.attempt
     val candidate = attempt?.candidate
     val basis = attempt?.approval?.at ?: attempt?.proposedAt
@@ -130,7 +130,7 @@ internal fun Out.passesDispatchGate(policy: PolicyTable, now: Instant): Boolean 
     }
     // Fail-safe: if the unknowns cannot even be computed, treat something as unknown.
     val somethingUnknown = try { state.currentUnknowns().isNotEmpty() } catch (e: Exception) { true }
-    if (candidate.executionClass && somethingUnknown) {
+    if (candidate.physicalAction && somethingUnknown) {
         escalate(now, Escalation(EscalationReason.UNKNOWN_BLOCKS_EXECUTION, "unknown after the diagnosis: ${candidate.candidateId}"))
         return false
     }
@@ -145,7 +145,7 @@ internal fun Out.passesDispatchGate(policy: PolicyTable, now: Instant): Boolean 
 
 /** REVALIDATING / UNKNOWN(PRECONDITION) → DISPATCH_PENDING: records the execution intent; `Dispatch` follows only its `Recorded`. */
 private fun Out.proceedToDispatch(policy: PolicyTable, now: Instant) {
-    if (!passesDispatchGate(policy, now)) return
+    if (!canDispatch(policy, now)) return
     val attempt = state.attempt ?: return
     val candidate = attempt.candidate ?: return
     enter(Phase.DISPATCH_PENDING, now)

@@ -157,7 +157,7 @@ internal fun Out.onDispatchPending(event: EpisodeEvent, policy: PolicyTable, now
 
 /** `Recorded` → `Dispatch`, after the same gate as before the intent (design §6); counts the dispatch (REPEATED_REMEDY). */
 private fun Out.dispatch(policy: PolicyTable, now: Instant) {
-    if (!passesDispatchGate(policy, now)) return
+    if (!canDispatch(policy, now)) return
     val attempt = state.attempt
     val intent = attempt?.intent
         ?: return escalate(now, Escalation(EscalationReason.RECORD_FAILED, "internal: no intent to dispatch"))
@@ -177,7 +177,7 @@ private fun Out.dispatch(policy: PolicyTable, now: Instant) {
         put("approverKind", approverKind)
         put("count", count)
     }
-    commands += Command.Dispatch(intent, approverKind, policy.deadlines.dispatchMs, state.token)
+    commands += Command.Dispatch(intent, approverKind, policy.deadlines.dispatchMs, state.fencingToken)
 }
 
 /** DISPATCHED (design §5.2): the answer decides; a JobResponse that comes first is kept for the next phase. */
@@ -186,7 +186,7 @@ internal fun Out.onDispatched(event: EpisodeEvent, policy: PolicyTable, now: Ins
     val intent = attempt?.intent
         ?: return escalate(now, Escalation(EscalationReason.DISPATCH_ANSWER_UNKNOWN, "internal: no intent in DISPATCHED"))
     when {
-        event is EpisodeEvent.DispatchReturned && event.token != state.token -> ignore(event, "stale dispatch result")
+        event is EpisodeEvent.DispatchReturned && event.fencingToken != state.fencingToken -> ignore(event, "stale dispatch result")
         event is EpisodeEvent.DispatchReturned -> onDispatchResult(attempt, intent, event.result, policy, now)
         event is EpisodeEvent.EvidenceArrived -> bufferEvidence(event.evidence)
         else -> ignore(event, "dispatched")
@@ -226,11 +226,11 @@ private fun Out.onDispatchResult(attempt: Attempt, intent: DispatchIntent, resul
             enterAwaitingEvidence(policy, now)
         }
         is DispatchJudgement.MayHaveLanded -> {
-            state = state.copy(attempt = attempt.copy(dispatch = summary(judgement.refusal), authorUnknown = true))
+            state = state.copy(attempt = attempt.copy(dispatch = summary(judgement.refusal), unattributedCompletion = true))
             enterUnknownOutcome(policy, now, outcomeUnknown = true, detail = judgement.refusal)
         }
         is DispatchJudgement.Uncertain -> {
-            state = state.copy(attempt = attempt.copy(dispatch = summary("UNCERTAIN"), authorUnknown = true))
+            state = state.copy(attempt = attempt.copy(dispatch = summary("UNCERTAIN"), unattributedCompletion = true))
             enterUnknownOutcome(policy, now, outcomeUnknown = true, detail = judgement.detail)
         }
         is DispatchJudgement.Refused -> {

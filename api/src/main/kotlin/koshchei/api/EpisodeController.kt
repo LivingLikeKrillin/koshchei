@@ -84,7 +84,7 @@ internal fun redactedPayload(kind: String, payload: JsonNode): JsonNode {
  */
 @RestController
 @RequestMapping("/api/episodes")
-class EpisodeController(private val gateway: EpisodeGateway, private val reader: EpisodeReader) {
+class EpisodeController(private val gateway: EpisodeApi, private val reader: EpisodeReader) {
     /**
      * Bodies are read here, not by Spring's mapper: that one ignores unknown fields, and a class annotation does not turn
      * it back on. This one refuses them (an `operatorId` in the body, a misspelt field), a field given twice, anything
@@ -118,9 +118,9 @@ class EpisodeController(private val gateway: EpisodeGateway, private val reader:
      * The records and notices, with the live view and its card while the run holds this instance. When Temporal fails to
      * answer, the records still do (`viewError`). Nothing live and nothing recorded is a 404.
      */
-    @GetMapping("/{workflowId}/{run}")
-    fun one(@PathVariable workflowId: String, @PathVariable run: String): ResponseEntity<Any> {
-        val instanceId = "$workflowId/$run"
+    @GetMapping("/{workflowId}/{originalRunId}")
+    fun one(@PathVariable workflowId: String, @PathVariable originalRunId: String): ResponseEntity<Any> {
+        val instanceId = "$workflowId/$originalRunId"
         var viewError: String? = null
         val view: EpisodeView? = try {
             gateway.view(instanceId)
@@ -148,39 +148,39 @@ class EpisodeController(private val gateway: EpisodeGateway, private val reader:
         )
     }
 
-    @PostMapping("/{workflowId}/{run}/decide")
-    fun decide(@PathVariable workflowId: String, @PathVariable run: String,
+    @PostMapping("/{workflowId}/{originalRunId}/decide")
+    fun decide(@PathVariable workflowId: String, @PathVariable originalRunId: String,
                @RequestHeader(OPERATOR_HEADER, required = false) operator: String?, request: HttpServletRequest): ResponseEntity<Any> {
         val operatorId = operatorOf(operator)
         val b = read(request, DecideBody::class.java)
         val approve = b.approve ?: throw BadEpisodeBody("approve is required")
-        return reply(gateway.decide("$workflowId/$run", DecideRequest(b.proposalId, b.sawCandidatesVersion, approve, operatorId, b.reason, b.note)))
+        return reply(gateway.decide("$workflowId/$originalRunId", DecideRequest(b.proposalId, b.sawCandidatesVersion, approve, operatorId, b.reason, b.note)))
     }
 
-    @PostMapping("/{workflowId}/{run}/confirm")
-    fun confirm(@PathVariable workflowId: String, @PathVariable run: String,
+    @PostMapping("/{workflowId}/{originalRunId}/confirm")
+    fun confirm(@PathVariable workflowId: String, @PathVariable originalRunId: String,
                 @RequestHeader(OPERATOR_HEADER, required = false) operator: String?, request: HttpServletRequest): ResponseEntity<Any> {
         val operatorId = operatorOf(operator)
         val b = read(request, ConfirmBody::class.java)
         val holds = b.holds ?: throw BadEpisodeBody("holds is required")
-        val instanceId = "$workflowId/$run"
+        val instanceId = "$workflowId/$originalRunId"
         val proposition = if (b.kind == "PRECONDITION") propositionFor(instanceId, b, holds) else null
         return reply(gateway.confirm(instanceId, ConfirmRequest(b.kind, b.candidateId, b.proposalId, holds, b.subject, b.what, operatorId, b.note, proposition)))
     }
 
-    @PostMapping("/{workflowId}/{run}/takeover")
-    fun takeover(@PathVariable workflowId: String, @PathVariable run: String,
+    @PostMapping("/{workflowId}/{originalRunId}/takeover")
+    fun takeover(@PathVariable workflowId: String, @PathVariable originalRunId: String,
                  @RequestHeader(OPERATOR_HEADER, required = false) operator: String?): ResponseEntity<Any> {
         val operatorId = operatorOf(operator)
-        return reply(gateway.takeover("$workflowId/$run", TakeoverRequest(operatorId)))
+        return reply(gateway.takeover("$workflowId/$originalRunId", TakeoverRequest(operatorId)))
     }
 
-    @PostMapping("/{workflowId}/{run}/close")
-    fun close(@PathVariable workflowId: String, @PathVariable run: String,
+    @PostMapping("/{workflowId}/{originalRunId}/close")
+    fun close(@PathVariable workflowId: String, @PathVariable originalRunId: String,
               @RequestHeader(OPERATOR_HEADER, required = false) operator: String?, request: HttpServletRequest): ResponseEntity<Any> {
         val operatorId = operatorOf(operator)
         val b = read(request, CloseBody::class.java)
-        return reply(gateway.close("$workflowId/$run", CloseRequest(operatorId, b.outcome)))
+        return reply(gateway.close("$workflowId/$originalRunId", CloseRequest(operatorId, b.outcome)))
     }
 
     /**

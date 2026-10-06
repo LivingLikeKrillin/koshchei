@@ -25,7 +25,7 @@ import java.util.UUID
  * model the approver's id (always "koshchei"), the consumption times (always the epoch), the REMEDY_NOT_APPLIED path (an
  * approval for an order already executing), or a missing approverKind (real picasso rejects it; the mock assumes PERSON).
  */
-class MockPicasso(val instanceId: String = "mock-${UUID.randomUUID()}") : ApprovalWindow {
+class MockApprovalClient(val instanceId: String = "mock-${UUID.randomUUID()}") : ApprovalClient {
     private val consumed = HashMap<Pair<String, String>, ObjectNode>()   // (robotId, jobOrderId) -> consumption record
     private var executions = 0
 

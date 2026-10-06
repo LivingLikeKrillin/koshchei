@@ -2,7 +2,7 @@ package koshchei.host
 
 import io.temporal.client.WorkflowClient
 import io.temporal.serviceclient.WorkflowServiceStubs
-import koshchei.runtime.AgentOffBroadcast
+import koshchei.runtime.KillSwitchBroadcast
 import koshchei.runtime.BundleRead
 import koshchei.runtime.DataConverterSupport
 import koshchei.runtime.EpisodeStart
@@ -106,7 +106,7 @@ object EpisodeCli {
     }
 
     /** `agentOff` to every open episode (design §10.4); the broadcast's report. */
-    fun agentOffAll(): AgentOffBroadcast.Report = withClient { client -> AgentOffBroadcast(client).send() }
+    fun agentOffAll(): KillSwitchBroadcast.Report = withClient { client -> KillSwitchBroadcast(client).send() }
 
     /** A client made as the worker makes one (local 7233, koshchei's converter), shut down after [block]. */
     private fun <T> withClient(block: (WorkflowClient) -> T): T {

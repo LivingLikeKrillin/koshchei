@@ -5,7 +5,7 @@ import java.time.Instant
 /** What the runtime feeds into [transition] (design §6). Plan B2b-2b adds the dispatch and evidence events. */
 sealed interface EpisodeEvent {
     /** The first symptom, delivered by signalWithStart. [instanceId] = workflow id + original execution run id (design §7.1). */
-    data class Detected(val instanceId: String, val manifestJson: String, val symptom: Symptom) : EpisodeEvent
+    data class Opened(val instanceId: String, val manifestJson: String, val symptom: Symptom) : EpisodeEvent
 
     data class SymptomJoined(val symptom: Symptom) : EpisodeEvent
 
@@ -26,10 +26,10 @@ sealed interface EpisodeEvent {
     ) : EpisodeEvent
 
     /**
-     * `revalidate` result; an activity failure arrives as UNKNOWN. [token] is the one [Command.Revalidate] carried, so a
+     * `revalidate` result; an activity failure arrives as UNKNOWN. [fencingToken] is the one [Command.Revalidate] carried, so a
      * late result for an earlier phase is recognisably stale.
      */
-    data class Revalidated(val result: TriState, val token: Long) : EpisodeEvent
+    data class Revalidated(val result: TriState, val fencingToken: Long) : EpisodeEvent
 
     /**
      * `confirm` Update on UNKNOWN(PRECONDITION): the person checked the proposition for [candidateId] (design §8.3).
@@ -37,7 +37,7 @@ sealed interface EpisodeEvent {
      */
     data class ConfirmedPrecondition(val candidateId: String, val proposalId: String, val holds: Boolean, val by: Approver, val proposition: String? = null) : EpisodeEvent
 
-    data class DeadlineExpired(val which: Timer, val token: Long) : EpisodeEvent
+    data class DeadlineExpired(val which: Timer, val fencingToken: Long) : EpisodeEvent
 
     /** `takeover` Update. */
     data class TakenOver(val by: Approver) : EpisodeEvent
@@ -54,8 +54,8 @@ sealed interface EpisodeEvent {
     /** The execution-intent record could not be stored, or its activity ran out of time. Nothing was dispatched. */
     data class RecordFailed(val seq: Long, val message: String?) : EpisodeEvent
 
-    /** `dispatch` activity result. [token] is the one [Command.Dispatch] carried, so a late result is recognisably stale. */
-    data class DispatchReturned(val result: DispatchResult, val token: Long) : EpisodeEvent
+    /** `dispatch` activity result. [fencingToken] is the one [Command.Dispatch] carried, so a late result is recognisably stale. */
+    data class DispatchReturned(val result: DispatchResult, val fencingToken: Long) : EpisodeEvent
 
     /** `evidence` signal: a JobResponse the host carried (design §12), deduplicated by (instanceId, jobResponseId) — [Evidence.reportKey]. */
     data class EvidenceArrived(val evidence: Evidence) : EpisodeEvent
@@ -80,10 +80,10 @@ sealed interface Command {
 
     data object CancelDiagnosis : Command
 
-    /** The runtime returns [token] in [EpisodeEvent.Revalidated]. */
-    data class Revalidate(val candidate: Candidate, val timeoutMs: Long, val token: Long) : Command
+    /** The runtime returns [fencingToken] in [EpisodeEvent.Revalidated]. */
+    data class Revalidate(val candidate: Candidate, val timeoutMs: Long, val fencingToken: Long) : Command
 
-    data class SetTimer(val which: Timer, val at: Instant, val token: Long) : Command
+    data class SetTimer(val which: Timer, val at: Instant, val fencingToken: Long) : Command
 
     data class Notify(val notice: Notice) : Command
 
@@ -96,10 +96,10 @@ sealed interface Command {
     /**
      * Dispatches the intent (design §8.4): the picasso approval window for APPROVE_REMEDY, sent as [approverKind]
      * (`AGENT` for a POLICY approval, `PERSON` for a person's); an operator task for the person-task kinds
-     * ([approverKind] null). The runtime returns [token] in [EpisodeEvent.DispatchReturned]; when its retries run out it
+     * ([approverKind] null). The runtime returns [fencingToken] in [EpisodeEvent.DispatchReturned]; when its retries run out it
      * returns [DispatchResult.Uncertain] — it never decides to dispatch again.
      */
-    data class Dispatch(val intent: DispatchIntent, val approverKind: String?, val timeoutMs: Long, val token: Long) : Command
+    data class Dispatch(val intent: DispatchIntent, val approverKind: String?, val timeoutMs: Long, val fencingToken: Long) : Command
 }
 
 /** What the `dispatch` activity came back with (design §8.4). */

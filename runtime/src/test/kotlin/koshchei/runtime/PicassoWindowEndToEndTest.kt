@@ -15,7 +15,7 @@ import kotlin.test.assertTrue
 
 /**
  * The real activities over the test Postgres, the Mock narrator and policy v1 — with the window the worker picks from
- * `KOSHCHEI_PICASSO=picasso`: [HttpApprovalWindow] against an in-test `HttpServer` standing in for picasso's `ApprovalHost`.
+ * `KOSHCHEI_PICASSO=picasso`: [HttpApprovalClient] against an in-test `HttpServer` standing in for picasso's `ApprovalHost`.
  */
 class PicassoWindowEndToEndTest {
     private var env: TestWorkflowEnvironment? = null

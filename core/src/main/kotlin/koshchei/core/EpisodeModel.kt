@@ -78,10 +78,10 @@ class Symptom(val eventId: String, val kind: SymptomKind, line: ObjectNode, val 
 enum class TriState { TRUE, FALSE, UNKNOWN }
 
 /**
- * Timers the runtime sets from [Command.SetTimer]. STATE and RECHECK belong to one phase and carry its token, so a timer
+ * Timers the runtime sets from [Command.SetTimer]. PHASE and RECHECK belong to one phase and carry its token, so a timer
  * left over from an earlier phase is ignored. EPISODE is set once. RETENTION belongs to ESCALATED.
  */
-enum class Timer { STATE, RECHECK, EPISODE, RETENTION }
+enum class Timer { PHASE, RECHECK, EPISODE, RETENTION }
 
 /** What an Update handler returns (design §7.2): refusals are values, recorded, never exceptions. */
 enum class Reply {

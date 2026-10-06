@@ -3,13 +3,13 @@ package koshchei.runtime
 import com.fasterxml.jackson.databind.JsonNode
 
 /**
- * picasso's approval window as the activities use it (design §8.3, §8.4): [MockPicasso] for tests, [HttpApprovalWindow]
+ * picasso's approval window as the activities use it (design §8.3, §8.4): [MockApprovalClient] for tests, [HttpApprovalClient]
  * for `KOSHCHEI_PICASSO=picasso`.
  *
  * One instance serves every activity of a worker, and activities run on concurrent threads: implementations must be
  * thread-safe.
  */
-interface ApprovalWindow {
+interface ApprovalClient {
     /** Re-reads the source for [candidateJson]: `TRUE`, `FALSE` or `UNKNOWN`. */
     fun revalidate(candidateJson: String): String
 

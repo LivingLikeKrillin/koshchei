@@ -22,10 +22,10 @@ class EvidenceTest {
         val d = dispatched()
         val early = d.evidence(jobResponse("jr-1", inDoubt = listOf("u-1")), d.state.enteredAt.plusMillis(500))
         assertEquals(Phase.DISPATCHED, early.state.phase)
-        assertEquals(1, early.state.bufferedEvidence.size)
+        assertEquals(1, early.state.bufferedJobResponses.size)
         val s = early.returned(DispatchResult.Answer(PicassoAnswers.approved()))
         assertEquals(Phase.UNKNOWN_OUTCOME, s.state.phase)   // the kept report was in doubt
-        assertTrue(s.state.bufferedEvidence.isEmpty())
+        assertTrue(s.state.bufferedJobResponses.isEmpty())
         assertTrue(s.state.episodeUnknowns.any { it.subject == mapOf("executionId" to "exec-42", "unitId" to "u-1") })
     }
 
@@ -133,7 +133,7 @@ class EvidenceTest {
         val one = d.evidence(jobResponse("jr-1", completed = listOf()), d.state.enteredAt.plusMillis(300))
         val two = one.evidence(jobResponse("jr-1", instance = "mw-2", completed = listOf()), one.state.enteredAt.plusMillis(300))
         assertEquals(listOf("kept until the answer"), two.records(RecordKind.EVIDENCE).map { it.entry.payload.get("why").textValue() })
-        assertEquals(2, two.state.bufferedEvidence.size)
+        assertEquals(2, two.state.bufferedJobResponses.size)
         val answered = two.returned(DispatchResult.Answer(PicassoAnswers.approved()))
         assertEquals(Phase.AWAITING_EVIDENCE, answered.state.phase)
         val again = answered.evidence(jobResponse("jr-1", completed = listOf()))

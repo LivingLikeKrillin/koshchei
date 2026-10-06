@@ -7,7 +7,7 @@ import java.time.Instant
 const val MAX_OFFERED_CANDIDATES = 26
 
 internal fun Out.onCorrelating(event: EpisodeEvent, policy: PolicyTable, now: Instant) {
-    if (event is EpisodeEvent.DeadlineExpired && event.which == Timer.STATE) enterDiagnosing(policy, now)
+    if (event is EpisodeEvent.DeadlineExpired && event.which == Timer.PHASE) enterDiagnosing(policy, now)
     else ignore(event, "correlating")
 }
 
@@ -55,7 +55,7 @@ internal fun Out.onDiagnosing(event: EpisodeEvent, policy: PolicyTable, now: Ins
     val attempt = state.attempt ?: return ignore(event, "no attempt in progress")
     when (event) {
         is EpisodeEvent.DiagnosisReturned -> {
-            val verdict = judgeDiagnosis(attempt.request, parseDiagnosisResponse(event.json))
+            val verdict = validateDiagnosis(attempt.request, parseDiagnosisResponse(event.json))
             state = state.copy(attempt = attempt.copy(verdict = verdict))
             record(RecordKind.DIAGNOSIS_RESULT) {
                 put("attempt", attempt.number)
@@ -180,7 +180,7 @@ internal fun Out.onAwaitingApproval(event: EpisodeEvent, policy: PolicyTable, no
                 )
             }
         }
-        event is EpisodeEvent.DeadlineExpired && event.which == Timer.STATE -> escalate(
+        event is EpisodeEvent.DeadlineExpired && event.which == Timer.PHASE -> escalate(
             now,
             Escalation(EscalationReason.APPROVAL_EXPIRED),
             approval = ApprovalSummary(ApprovalResult.EXPIRED, null, null, now),
@@ -226,7 +226,7 @@ internal fun Out.enterRevalidating(approval: Approval?, policy: PolicyTable, now
         put("policyVersion", policy.version)
     }
     enter(Phase.REVALIDATING, now)
-    commands += Command.Revalidate(candidate, policy.deadlines.revalidateMs, state.token)
+    commands += Command.Revalidate(candidate, policy.deadlines.revalidateMs, state.fencingToken)
 }
 
 private fun DiagnosisEscalation.escalation(): EscalationReason = when (this) {

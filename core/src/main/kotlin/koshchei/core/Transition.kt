@@ -9,18 +9,18 @@ import java.time.Instant
 data class Step(val state: EpisodeState, val commands: List<Command>, val reply: Reply? = null)
 
 /** EPISODE timers are set once and never go stale. */
-const val EPISODE_TOKEN: Long = -1
+const val EPISODE_FENCING_TOKEN: Long = -1
 
 /**
  * Opens an episode on its first symptom (design §5.2 start rows, §7.1). [read] is what `readPolicy` found at the start.
  * The policy off, missing or expired → ESCALATED at once, with a retention timer; otherwise CORRELATING for the merge
  * window, with the whole-episode timer.
  */
-fun startEpisode(event: EpisodeEvent.Detected, read: PolicyRead, now: Instant): Step {
+fun startEpisode(event: EpisodeEvent.Opened, read: PolicyRead, now: Instant): Step {
     val out = Out(
         EpisodeState(
             instanceId = event.instanceId, startedAt = now, episodeDeadline = null, phase = Phase.CORRELATING,
-            enteredAt = now, token = 0, stateDeadline = null, escalation = null, manifestJson = event.manifestJson,
+            enteredAt = now, fencingToken = 0, stateDeadline = null, escalation = null, manifestJson = event.manifestJson,
             symptoms = listOf(event.symptom), seenEventIds = setOf(event.symptom.eventId), attempt = null,
             history = emptyList(), dispatchCounts = emptyMap(), policy = null, autoApproveSuspended = false,
             lastRejected = emptyList(), recordSeq = 0,
@@ -47,7 +47,7 @@ fun startEpisode(event: EpisodeEvent.Detected, read: PolicyRead, now: Instant): 
             else {
                 val deadline = episodeDeadline(now, resolution.policy)
                 out.state = out.state.copy(episodeDeadline = deadline)
-                out.commands += Command.SetTimer(Timer.EPISODE, deadline, EPISODE_TOKEN)
+                out.commands += Command.SetTimer(Timer.EPISODE, deadline, EPISODE_FENCING_TOKEN)
                 out.enter(Phase.CORRELATING, now)
                 out.stateTimer(now, resolution.policy.deadlines.correlatingMs)
             }
@@ -89,7 +89,7 @@ fun transition(state: EpisodeState, event: EpisodeEvent, read: PolicyRead?, now:
         out.escalate(now, Escalation(EscalationReason.EPISODE_EXPIRED), cancelDiagnosis = cancel)
     when {
         event is EpisodeEvent.SymptomJoined -> out.join(event)
-        event is EpisodeEvent.Detected -> out.ignore(event, "already open")
+        event is EpisodeEvent.Opened -> out.ignore(event, "already open")
         event is EpisodeEvent.Closed && !wasEscalated -> out.ignore(event, "not escalated when received")
         // The deadline check above has normally escalated already; an early-delivered EPISODE timer still counts.
         event is EpisodeEvent.DeadlineExpired && event.which == Timer.EPISODE && !wasEscalated ->
@@ -101,7 +101,7 @@ fun transition(state: EpisodeState, event: EpisodeEvent, read: PolicyRead?, now:
             out.escalate(now, Escalation(EscalationReason.TAKEN_OVER, "by ${event.by.id}"))
         }
         event is EpisodeEvent.AgentOff -> out.escalate(now, Escalation(EscalationReason.AGENT_LAYER_OFF))
-        event is EpisodeEvent.DeadlineExpired && event.token != out.state.token -> out.ignore(event, "stale timer")
+        event is EpisodeEvent.DeadlineExpired && event.fencingToken != out.state.fencingToken -> out.ignore(event, "stale timer")
         else -> {
             val policy = out.state.policy
             if (policy == null) out.escalate(now, Escalation(EscalationReason.POLICY_MISSING, "no table in force"))
@@ -130,7 +130,7 @@ private fun Out.onEscalated(event: EpisodeEvent, now: Instant) {
             reply = Reply.ACCEPTED
             enter(Phase.CLOSED, now, state.escalation, detail = "by ${event.by.id}: ${event.outcome}")
         }
-        event is EpisodeEvent.DeadlineExpired && event.which == Timer.RETENTION && event.token == state.token ->
+        event is EpisodeEvent.DeadlineExpired && event.which == Timer.RETENTION && event.fencingToken == state.fencingToken ->
             enter(Phase.CLOSED, now, state.escalation, detail = "UNATTENDED")
         event is EpisodeEvent.TakenOver -> {
             reply = Reply.ACCEPTED
@@ -185,7 +185,7 @@ internal class Out(var state: EpisodeState, private var opening: Boolean = true)
     fun enter(phase: Phase, now: Instant, escalation: Escalation? = null, detail: String? = null) {
         val from = if (opening) null else state.phase
         opening = false
-        state = state.copy(phase = phase, enteredAt = now, token = state.token + 1, stateDeadline = null, escalation = escalation)
+        state = state.copy(phase = phase, enteredAt = now, fencingToken = state.fencingToken + 1, stateDeadline = null, escalation = escalation)
         record(RecordKind.TRANSITION) {
             put("from", from?.name)
             put("to", phase.name)
@@ -198,7 +198,7 @@ internal class Out(var state: EpisodeState, private var opening: Boolean = true)
     fun stateTimer(now: Instant, budgetMs: Long) {
         val until = state.episodeDeadline?.let { waitUntil(now, budgetMs, it) } ?: now.plusMillis(budgetMs)
         state = state.copy(stateDeadline = until)
-        commands += Command.SetTimer(Timer.STATE, until, state.token)
+        commands += Command.SetTimer(Timer.PHASE, until, state.fencingToken)
     }
 
     fun step(): Step = Step(state, commands.toList(), reply)
@@ -256,13 +256,13 @@ internal fun Out.escalate(
 ) {
     if (cancelDiagnosis && state.phase == Phase.DIAGNOSING) commands += Command.CancelDiagnosis
     // JobResponses DISPATCHED kept for the answer will never be applied now: record each, then drop them.
-    if (state.bufferedEvidence.isNotEmpty()) {
-        state.bufferedEvidence.forEach { recordEvidence(it, counted = false, why = "kept, but the episode escalated") }
-        state = state.copy(bufferedEvidence = emptyList())
+    if (state.bufferedJobResponses.isNotEmpty()) {
+        state.bufferedJobResponses.forEach { recordEvidence(it, counted = false, why = "kept, but the episode escalated") }
+        state = state.copy(bufferedJobResponses = emptyList())
     }
     closeAttempt(closedAs, now, approval)
     enter(Phase.ESCALATED, now, escalation)
-    commands += Command.SetTimer(Timer.RETENTION, escalatedUntil(now, state.policy), state.token)
+    commands += Command.SetTimer(Timer.RETENTION, escalatedUntil(now, state.policy), state.fencingToken)
     notify(NoticeKind.ESCALATED, escalation.reason, escalation.detail)
 }
 

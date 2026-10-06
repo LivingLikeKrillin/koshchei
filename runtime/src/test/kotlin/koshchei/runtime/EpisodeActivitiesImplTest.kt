@@ -15,7 +15,7 @@ import kotlin.test.assertTrue
 class EpisodeActivitiesImplTest {
     @TempDir lateinit var dir: Path
     private lateinit var store: EpisodeStore
-    private val picasso = CountingWindow(MockPicasso())
+    private val picasso = CountingWindow(MockApprovalClient())
     private val acts by lazy { EpisodeActivitiesImpl(PolicyFileReader(dir.resolve("active.yaml")), store, picasso) }
 
     @BeforeEach fun up() { store = EpisodeDb.reset() }
@@ -139,7 +139,7 @@ class EpisodeActivitiesImplTest {
     }
 
     /** The approval window with every `approve` counted. */
-    private class CountingWindow(private val inner: ApprovalWindow) : ApprovalWindow by inner {
+    private class CountingWindow(private val inner: ApprovalClient) : ApprovalClient by inner {
         @Volatile var approvals = 0
 
         override fun approve(intent: JsonNode, approverKind: String?): String {

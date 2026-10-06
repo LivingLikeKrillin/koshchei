@@ -9,7 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class MockPicassoTest {
+class MockApprovalClientTest {
     private val json = ObjectMapper()
 
     private fun remedy(robot: String = "hum-02", order: String = "PATROL-1", search: String = "search-1") =
@@ -21,16 +21,16 @@ class MockPicassoTest {
     private fun answer(text: String) = json.readTree(text)
 
     @Test fun `the first approval of a proposal is APPROVED in picasso's schema 4 with the steps that went out`() {
-        val a = answer(MockPicasso(MockPicasso.INSTANCE).approve(intent(remedy()), "PERSON"))
+        val a = answer(MockApprovalClient(MockApprovalClient.INSTANCE).approve(intent(remedy()), "PERSON"))
         assertEquals("4", a["schemaVersion"].textValue())
-        assertEquals(MockPicasso.INSTANCE, a["instanceId"].textValue())
+        assertEquals(MockApprovalClient.INSTANCE, a["instanceId"].textValue())
         assertEquals("APPROVED", a["outcome"].textValue())
         assertEquals("mock-exec-1", a["executionId"].textValue())
         assertEquals("pick_place", a["steps"][0]["skillType"].textValue())
         assertEquals("remedy-1-pick_place", a["steps"][0]["unitId"].textValue())
         // a unit per step, named as picasso names it: remedy-{n}-{skillType}, n from 1 in step order
         val two = answer(
-            MockPicasso(MockPicasso.INSTANCE).approve(
+            MockApprovalClient(MockApprovalClient.INSTANCE).approve(
                 intent("""{"candidateId":"APPROVE_REMEDY:hum-02:PATROL-1:pick_place","kind":"APPROVE_REMEDY",
                     "ref":{"robotId":"hum-02","jobOrderId":"PATROL-1","searchId":"search-1"},"sawSkillTypes":["pick_place","place"]}"""),
                 "PERSON",
@@ -40,7 +40,7 @@ class MockPicassoTest {
     }
 
     @Test fun `the same proposal approved again is CONSUMED with the consumption record`() {
-        val picasso = MockPicasso()
+        val picasso = MockApprovalClient()
         val first = answer(picasso.approve(intent(remedy()), "PERSON"))
         val second = answer(picasso.approve(intent(remedy()), "PERSON"))
         assertEquals("REFUSED", second["outcome"].textValue())
@@ -50,19 +50,19 @@ class MockPicassoTest {
     }
 
     @Test fun `a newer search for the consumed (robot, order) is CONSUMED - picasso records consumption per (robot, order)`() {
-        val picasso = MockPicasso()
+        val picasso = MockApprovalClient()
         picasso.approve(intent(remedy(search = "search-1")), "PERSON")
         assertEquals("CONSUMED", answer(picasso.approve(intent(remedy(search = "search-2")), "AGENT"))["refusal"].textValue())
     }
 
     @Test fun `each mock is its own instance unless told - picasso never names one deterministically (ADR 48)`() {
-        val a = answer(MockPicasso().approve(intent(remedy()), "PERSON"))["instanceId"].textValue()
-        val b = answer(MockPicasso().approve(intent(remedy()), "PERSON"))["instanceId"].textValue()
+        val a = answer(MockApprovalClient().approve(intent(remedy()), "PERSON"))["instanceId"].textValue()
+        val b = answer(MockApprovalClient().approve(intent(remedy()), "PERSON"))["instanceId"].textValue()
         assertTrue(a.startsWith("mock-") && b.startsWith("mock-") && a != b, "$a $b")
     }
 
     @Test fun `another (robot, order) is its own proposal`() {
-        val picasso = MockPicasso()
+        val picasso = MockApprovalClient()
         picasso.approve(intent(remedy()), "PERSON")
         val other = answer(picasso.approve(intent(remedy(order = "PATROL-2")), "PERSON"))
         assertEquals("APPROVED", other["outcome"].textValue())
@@ -70,24 +70,24 @@ class MockPicassoTest {
     }
 
     @Test fun `revalidation is TRUE until the proposal is consumed, then FALSE`() {
-        val picasso = MockPicasso()
+        val picasso = MockApprovalClient()
         assertEquals("TRUE", picasso.revalidate(remedy()))
         picasso.approve(intent(remedy()), "PERSON")
         assertEquals("FALSE", picasso.revalidate(remedy()))
     }
 
     @Test fun `revalidation of a person task is TRUE - the mock has no source to read`() =
-        assertEquals("TRUE", MockPicasso().revalidate("""{"candidateId":"CHOOSE_SOURCE:x","kind":"CHOOSE_SOURCE","ref":{}}"""))
+        assertEquals("TRUE", MockApprovalClient().revalidate("""{"candidateId":"CHOOSE_SOURCE:x","kind":"CHOOSE_SOURCE","ref":{}}"""))
 
-    @Test fun `a candidate it cannot read is UNKNOWN`() = assertEquals("UNKNOWN", MockPicasso().revalidate("{not json"))
+    @Test fun `a candidate it cannot read is UNKNOWN`() = assertEquals("UNKNOWN", MockApprovalClient().revalidate("{not json"))
 
     @Test fun `both person-task kinds are TRUE`() {
         for (kind in listOf("CHOOSE_SOURCE", "OPERATOR_DECISION"))
-            assertEquals("TRUE", MockPicasso().revalidate("""{"candidateId":"$kind:x","kind":"$kind","ref":{}}"""), kind)
+            assertEquals("TRUE", MockApprovalClient().revalidate("""{"candidateId":"$kind:x","kind":"$kind","ref":{}}"""), kind)
     }
 
     @Test fun `a candidate that is not an object, or names no kind it knows, is UNKNOWN - it does not act on what it cannot read`() {
-        val picasso = MockPicasso()
+        val picasso = MockApprovalClient()
         for (c in listOf("", "null", "[]", "\"APPROVE_REMEDY\"", "{}", """{"kind":""}""", """{"kind":"  "}""", """{"kind":7}""", """{"kind":"SOMETHING_NEW"}"""))
             assertEquals("UNKNOWN", picasso.revalidate(c), c)
     }
@@ -98,11 +98,11 @@ class MockPicassoTest {
             """{"kind":"APPROVE_REMEDY","ref":{"jobOrderId":"PATROL-1","searchId":"s"}}""",
             """{"kind":"APPROVE_REMEDY","ref":{"robotId":7,"jobOrderId":"PATROL-1","searchId":"s"}}""",
         )
-        for (c in unnamed) assertEquals("UNKNOWN", MockPicasso().revalidate(c), c)
+        for (c in unnamed) assertEquals("UNKNOWN", MockApprovalClient().revalidate(c), c)
     }
 
     @Test fun `a remedy that does not name its robot and order is never approved and consumes nothing`() {
-        val picasso = MockPicasso()
+        val picasso = MockApprovalClient()
         val unnamed = answer(picasso.approve(intent(remedy(robot = "")), "PERSON"))
         assertRefusal(unnamed, "NO_PROPOSAL")
         assertEquals("mock: no proposal for an unnamed robot/order", unnamed["reason"].textValue())
@@ -117,7 +117,7 @@ class MockPicassoTest {
     // each answer shape is held to the exact field set that reader needs (picasso ApprovalWire schema 4).
 
     @Test fun `an APPROVED answer has exactly picasso's schema-4 fields - an execution and a unit per step`() {
-        val a = answer(MockPicasso().approve(intent(remedy()), "PERSON"))
+        val a = answer(MockApprovalClient().approve(intent(remedy()), "PERSON"))
         assertEquals(setOf("schemaVersion", "contractSemver", "instanceId", "outcome", "executionId", "steps"), a.fieldNames().asSequence().toSet())
         assertEnvelope(a, "APPROVED")
         assertTrue(a["executionId"].isTextual && a["executionId"].textValue().isNotBlank())
@@ -128,7 +128,7 @@ class MockPicassoTest {
     }
 
     @Test fun `a CONSUMED answer has exactly picasso's schema-4 fields - with the consumption record`() {
-        val picasso = MockPicasso()
+        val picasso = MockApprovalClient()
         picasso.approve(intent(remedy()), "PERSON")
         val a = answer(picasso.approve(intent(remedy()), "PERSON"))
         assertRefusal(a, "CONSUMED")
@@ -136,7 +136,7 @@ class MockPicassoTest {
     }
 
     @Test fun `a NO_PROPOSAL answer has exactly picasso's schema-4 fields - consumed is null`() {
-        val a = answer(MockPicasso().approve(intent("""{"candidateId":"c","kind":"APPROVE_REMEDY","ref":{},"sawSkillTypes":["pick_place"]}"""), "PERSON"))
+        val a = answer(MockApprovalClient().approve(intent("""{"candidateId":"c","kind":"APPROVE_REMEDY","ref":{},"sawSkillTypes":["pick_place"]}"""), "PERSON"))
         assertRefusal(a, "NO_PROPOSAL")
         assertTrue(a["consumed"].isNull)
     }

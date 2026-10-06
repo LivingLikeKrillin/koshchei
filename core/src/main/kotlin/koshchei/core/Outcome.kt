@@ -7,7 +7,7 @@ import java.time.Instant
 const val PICASSO_ONLINE = "CONNECTION_STATE_ONLINE"
 
 /** ① of design §12: a JobResponse belongs to this attempt only through the execution its approval named — instance and id. */
-private fun Attempt.links(e: Evidence): Boolean =
+private fun Attempt.matches(e: Evidence): Boolean =
     executionId != null && picassoInstanceId != null && e.executionId == executionId && e.picassoInstanceId == picassoInstanceId
 
 /** AWAITING_EVIDENCE: a JobResponse or a person's check decides; `evidenceMs` ends it (design §5.1, §5.2). */
@@ -44,7 +44,7 @@ internal fun Out.enterUnknownOutcome(policy: PolicyTable, now: Instant, outcomeU
 /** DISPATCHED keeps JobResponses that come before the answer (they leave the same pump as the acceptance, design §5.2). */
 internal fun Out.bufferEvidence(e: Evidence) {
     if (e.reportKey in state.seenReports) return recordEvidence(e, counted = false, why = "duplicate jobResponseId")
-    state = state.copy(bufferedEvidence = state.bufferedEvidence + e, seenReports = state.seenReports + e.reportKey)
+    state = state.copy(bufferedJobResponses = state.bufferedJobResponses + e, seenReports = state.seenReports + e.reportKey)
     recordEvidence(e, counted = false, why = "kept until the answer")
 }
 
@@ -56,11 +56,11 @@ internal fun Out.bufferEvidence(e: Evidence) {
  * reports are already marked seen, only a fresh report can resolve afterwards.
  */
 private fun Out.replayBuffered(policy: PolicyTable, now: Instant) {
-    val buffered = state.bufferedEvidence
+    val buffered = state.bufferedJobResponses
     if (buffered.isEmpty()) return
     val attempt = state.attempt
-    val doubtInBatch = attempt != null && buffered.any { attempt.links(it) && it.inDoubt() }
-    state = state.copy(bufferedEvidence = emptyList())
+    val doubtInBatch = attempt != null && buffered.any { attempt.matches(it) && it.inDoubt() }
+    state = state.copy(bufferedJobResponses = emptyList())
     for (e in buffered) {
         if (state.phase == Phase.AWAITING_EVIDENCE || state.phase == Phase.UNKNOWN_OUTCOME)
             takeEvidence(e, replayed = true, policy, now, allowResolve = !doubtInBatch)
@@ -92,7 +92,7 @@ internal fun Out.takeEvidence(e: Evidence, replayed: Boolean, policy: PolicyTabl
         state = state.copy(seenReports = state.seenReports + e.reportKey)
     }
     // ① Linked only through the execution picasso returned for this attempt's approval. Person tasks have none (§8.4).
-    if (!attempt.links(e)) return recordEvidence(e, counted = false, why = "not linked to this attempt's execution")
+    if (!attempt.matches(e)) return recordEvidence(e, counted = false, why = "not linked to this attempt's execution")
     // ② In doubt, unverified, a person needed, or simply not reported: UNKNOWN — never DONE, never folded into NOT_DONE.
     if (e.inDoubt()) {
         recordEvidence(e, counted = true, why = "in doubt")
@@ -131,7 +131,7 @@ private fun Out.resolve(evidence: EvidenceSummary, now: Instant) {
     attempt.candidate?.let { forgetOutcomeUnknown(it) }
     state = state.copy(attempt = attempt.copy(evidence = evidence))
     closeAttempt(ClosedAs.RESOLVED, now)
-    enter(Phase.RESOLVED, now, detail = if (attempt.authorUnknown) "done; by whom unknown" else "done")
+    enter(Phase.RESOLVED, now, detail = if (attempt.unattributedCompletion) "done; by whom unknown" else "done")
 }
 
 /** The candidate's own OUTCOME unknown (§9.4) goes once a person or a report knows the outcome. Unit-level ones stay. */
@@ -197,7 +197,7 @@ internal fun Out.onOutcome(event: EpisodeEvent, policy: PolicyTable, now: Instan
                 rediagnose(RediagnoseReason.NOT_DONE, policy, now, detail = "by ${event.by.id}")
             }
         }
-        event is EpisodeEvent.DeadlineExpired && event.which == Timer.STATE ->
+        event is EpisodeEvent.DeadlineExpired && event.which == Timer.PHASE ->
             if (state.phase == Phase.AWAITING_EVIDENCE) escalate(now, Escalation(EscalationReason.EVIDENCE_EXPIRED, candidate.candidateId))
             else escalate(now, Escalation(EscalationReason.UNKNOWN_UNRESOLVED, "outcome of ${candidate.candidateId}"), closedAs = ClosedAs.UNKNOWN)
         else -> ignore(event, "awaiting the outcome")

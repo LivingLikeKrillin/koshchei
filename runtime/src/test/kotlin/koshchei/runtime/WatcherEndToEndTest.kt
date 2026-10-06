@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
  * The Mock window, held at `approve` until [gate] opens: the episode stays DISPATCHED meanwhile. [asked] opens when it is
  * reached. A gate that stays shut for 30 s fails the call rather than letting it through unnoticed.
  */
-private class GatedWindow(private val inner: ApprovalWindow, val gate: CountDownLatch) : ApprovalWindow {
+private class GatedWindow(private val inner: ApprovalClient, val gate: CountDownLatch) : ApprovalClient {
     val asked = CountDownLatch(1)
     override fun revalidate(candidateJson: String): String = inner.revalidate(candidateJson)
     override fun approve(intent: JsonNode, approverKind: String?): String {
@@ -48,7 +48,7 @@ class WatcherEndToEndTest {
     private val mapper = ObjectMapper()
 
     /** The real activities over the test Postgres, the Mock narrator and [picasso], [policy] as the policy file. */
-    private fun start(policy: Path, picasso: ApprovalWindow = MockPicasso(MockPicasso.INSTANCE)): TestWorkflowEnvironment {
+    private fun start(policy: Path, picasso: ApprovalClient = MockApprovalClient(MockApprovalClient.INSTANCE)): TestWorkflowEnvironment {
         val e = episodeEnvironment {
             EpisodeWorkers.register(workerFactory, EpisodeRuntimeConfig(policy, NarratorMode.MOCK, PicassoMode.MOCK), store, picasso)
         }
@@ -146,7 +146,7 @@ class WatcherEndToEndTest {
     }
 
     @Test fun `a report before picasso's answer is kept and counted once the answer comes`() {
-        val window = GatedWindow(MockPicasso(MockPicasso.INSTANCE), CountDownLatch(1))
+        val window = GatedWindow(MockApprovalClient(MockApprovalClient.INSTANCE), CountDownLatch(1))
         val e = start(v1, window)
         val w = watcher(v1)
         export.searches += Picasso.search("search-1")

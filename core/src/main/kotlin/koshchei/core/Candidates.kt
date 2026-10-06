@@ -31,7 +31,7 @@ class Candidate private constructor(
      * Execution class (design §9.1): moves the field, so it is withheld while anything is unknown. Fail-closed: of the
      * operator decisions only an explicit CONFIRM_DONE is outside the class, so an unexpected value counts as execution.
      */
-    val executionClass: Boolean
+    val physicalAction: Boolean
         get() = when (kind) {
             CandidateKind.APPROVE_REMEDY, CandidateKind.CHOOSE_SOURCE -> true
             CandidateKind.OPERATOR_DECISION -> ref?.get("decision") != OperatorDecision.CONFIRM_DONE.name
@@ -145,5 +145,5 @@ fun projectCandidates(snapshot: Snapshot, unknowns: List<Unknown>): List<Candida
             OperatorDecision.entries.forEach { add(Candidate.operatorDecision(executionId, unitId, it)) }
     }
     val blocked = unknowns.isNotEmpty()
-    return byId.values.filterNot { blocked && it.executionClass }.sortedBy { it.candidateId }
+    return byId.values.filterNot { blocked && it.physicalAction }.sortedBy { it.candidateId }
 }

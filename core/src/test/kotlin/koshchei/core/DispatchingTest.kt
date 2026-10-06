@@ -18,7 +18,7 @@ class DispatchingTest {
         assertEquals(REMEDY, d.intent.candidate.candidateId)
         assertEquals("AGENT", d.approverKind)
         assertEquals(30_000, d.timeoutMs)
-        assertEquals(s.state.token, d.token)
+        assertEquals(s.state.fencingToken, d.fencingToken)
         assertEquals(mapOf(REMEDY to 1), s.state.dispatchCounts)
         assertEquals(1, s.records(RecordKind.DISPATCH_SENT).size)
     }
@@ -55,7 +55,7 @@ class DispatchingTest {
         val p = pending()
         val s = p.on(EpisodeEvent.EvidenceArrived(jobResponse("jr-early", inDoubt = listOf("u-9"))), p.state.enteredAt.plusMillis(500))
         assertEquals(Phase.DISPATCH_PENDING, s.state.phase)
-        assertTrue(s.state.bufferedEvidence.isEmpty())
+        assertTrue(s.state.bufferedJobResponses.isEmpty())
         assertFalse(s.records(RecordKind.EVIDENCE).single().entry.payload.get("counted").booleanValue())
         val accepted = s.recorded().returned(DispatchResult.Answer(PicassoAnswers.approved()))
         assertEquals(Phase.AWAITING_EVIDENCE, accepted.state.phase)   // it was not kept for later
@@ -72,7 +72,7 @@ class DispatchingTest {
         assertEquals("ACCEPTED", a.dispatch!!.result)
         assertEquals("AGENT", a.dispatch!!.approverKind)
         assertEquals("pick_place", a.dispatch!!.delivered!![0].get("skillType").textValue())
-        assertEquals(s.state.enteredAt.plusMillis(600_000), s.timers(Timer.STATE).single().at)
+        assertEquals(s.state.enteredAt.plusMillis(600_000), s.timers(Timer.PHASE).single().at)
     }
 
     @Test fun `a person task is issued without an approver kind`() {
@@ -94,10 +94,10 @@ class DispatchingTest {
             val s = dispatched().returned(result)
             assertEquals(Phase.UNKNOWN_OUTCOME, s.state.phase, "$result")
             assertTrue(s.commands.none { it is Command.Dispatch || it is Command.RecordIntent }, "$result")
-            assertTrue(s.state.attempt!!.authorUnknown, "$result")
+            assertTrue(s.state.attempt!!.unattributedCompletion, "$result")
             assertEquals(listOf(UnknownWhat.OUTCOME), s.state.episodeUnknowns.map { it.what }, "$result")
             assertEquals(NoticeKind.CONFIRM_OUTCOME, s.notices().single().kind, "$result")
-            assertEquals(s.state.enteredAt.plusMillis(900_000), s.timers(Timer.STATE).single().at, "$result")
+            assertEquals(s.state.enteredAt.plusMillis(900_000), s.timers(Timer.PHASE).single().at, "$result")
         }
     }
 
@@ -125,7 +125,7 @@ class DispatchingTest {
 
     @Test fun `a dispatch result from an earlier phase is ignored`() {
         val d = dispatched()
-        val s = d.on(EpisodeEvent.DispatchReturned(DispatchResult.Answer(PicassoAnswers.approved()), d.state.token - 1), d.state.enteredAt.plusSeconds(1))
+        val s = d.on(EpisodeEvent.DispatchReturned(DispatchResult.Answer(PicassoAnswers.approved()), d.state.fencingToken - 1), d.state.enteredAt.plusSeconds(1))
         assertEquals(Phase.DISPATCHED, s.state.phase)
         assertEquals("stale dispatch result", s.records(RecordKind.IGNORED).single().entry.payload.get("why").textValue())
     }

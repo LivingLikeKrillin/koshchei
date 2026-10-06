@@ -45,7 +45,7 @@ data class Attempt internal constructor(
     val dispatch: DispatchSummary? = null,
     val evidence: EvidenceSummary? = null,
     /** NO_PROPOSAL, REMEDY_NOT_APPLIED, CONSUMED or an uncertain dispatch: a later DONE is "done, by whom unknown" (design §11). */
-    val authorUnknown: Boolean = false,
+    val unattributedCompletion: Boolean = false,
 ) {
     /** design §7.2: instance id + attempt number. */
     val proposalId: String get() = "${request.episodeId}#$number"
@@ -55,7 +55,7 @@ data class Attempt internal constructor(
 
 /**
  * An episode between two events (design §5). Only [startEpisode] and [transition] make one. Every phase entry takes a
- * new [token]; STATE and RECHECK timers carry it, so a timer from an earlier phase is recognisably stale.
+ * new [fencingToken]; PHASE and RECHECK timers carry it, so a timer from an earlier phase is recognisably stale.
  *
  * The state holds [DiagnosisVerdict] values (inside [Attempt]), which are never serialized — see `DiagnosisVerdicts.kt`.
  * Runtime persistence (plan B3) uses its own shape and re-judges from the raw response.
@@ -68,8 +68,8 @@ data class EpisodeState internal constructor(
     val episodeDeadline: Instant?,
     val phase: Phase,
     val enteredAt: Instant,
-    val token: Long,
-    /** The current phase's own deadline (its STATE timer), if it has one. */
+    val fencingToken: Long,
+    /** The current phase's own deadline (its PHASE timer), if it has one. */
     val stateDeadline: Instant?,
     val escalation: Escalation?,
     val manifestJson: String,
@@ -88,7 +88,7 @@ data class EpisodeState internal constructor(
     /** The episode's own unknowns (design §9.1, §9.4), e.g. OUTCOME after NO_PROPOSAL; they reach the next diagnosis request. */
     val episodeUnknowns: List<Unknown> = emptyList(),
     /** JobResponses that arrived in DISPATCHED, before the answer; applied on entering AWAITING_EVIDENCE / UNKNOWN(OUTCOME). */
-    val bufferedEvidence: List<Evidence> = emptyList(),
+    val bufferedJobResponses: List<Evidence> = emptyList(),
     /** Every JobResponse seen in this episode, by [Evidence.reportKey]: a redelivered one never counts twice (design §6). */
     val seenReports: Set<String> = emptySet(),
     /**

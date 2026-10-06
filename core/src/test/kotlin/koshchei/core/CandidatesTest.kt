@@ -135,12 +135,12 @@ class CandidatesTest {
     @Test fun `only CONFIRM_DONE stays outside the execution class`() {
         val confirm = Candidate.operatorDecision("e", "u", OperatorDecision.CONFIRM_DONE)
         val rework = Candidate.operatorDecision("e", "u", OperatorDecision.REWORK)
-        assertFalse(confirm.executionClass)
-        assertTrue(rework.executionClass)
+        assertFalse(confirm.physicalAction)
+        assertTrue(rework.physicalAction)
         assertEquals("CONFIRM_DONE", confirm.ref!!["decision"])
         assertEquals("OPERATOR_DECISION:e:u:REWORK", rework.candidateId)
-        assertTrue(Candidate.approveRemedy("r", "j", listOf("x"), "s").executionClass)
-        assertFalse(Candidate.ESCALATE.executionClass)
+        assertTrue(Candidate.approveRemedy("r", "j", listOf("x"), "s").physicalAction)
+        assertFalse(Candidate.ESCALATE.physicalAction)
     }
 
     @Test fun `the skill list is copied defensively`() {

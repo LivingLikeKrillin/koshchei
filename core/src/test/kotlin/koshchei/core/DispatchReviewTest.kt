@@ -35,7 +35,7 @@ class DispatchReviewTest {
     }
 
     @Test fun `the episode deadline while DISPATCHED does too`() {
-        val s = dispatched().let { it.on(EpisodeEvent.DeadlineExpired(Timer.EPISODE, EPISODE_TOKEN), Episodes.T0.plusMillis(3_600_000)) }
+        val s = dispatched().let { it.on(EpisodeEvent.DeadlineExpired(Timer.EPISODE, EPISODE_FENCING_TOKEN), Episodes.T0.plusMillis(3_600_000)) }
         assertEquals(EscalationReason.EPISODE_EXPIRED, s.reason)
         assertEquals("UNCERTAIN", s.state.history.single().dispatch!!.result)
     }
@@ -97,7 +97,7 @@ class DispatchReviewTest {
         val d = dispatched()
         val a = d.evidence(jobResponse("jr-a"), d.state.enteredAt.plusMillis(300))
         val b = a.evidence(jobResponse("jr-b", inDoubt = listOf("u-2")), a.state.enteredAt.plusMillis(300))
-        assertEquals(2, b.state.bufferedEvidence.size)
+        assertEquals(2, b.state.bufferedJobResponses.size)
         val s = b.returned(DispatchResult.Answer(PicassoAnswers.approved()))
         assertEquals(Phase.UNKNOWN_OUTCOME, s.state.phase)
         assertTrue(s.records(RecordKind.EVIDENCE).any { it.entry.payload.get("why").textValue() == "not resolved: a kept report is in doubt" })
@@ -119,7 +119,7 @@ class DispatchReviewTest {
         assertEquals(Phase.UNKNOWN_OUTCOME, s.state.phase)
         assertTrue(s.commands.none { it is Command.SetTimer || it is Command.Notify })
         assertEquals(u.state.stateDeadline, s.state.stateDeadline)
-        assertEquals(u.state.token, s.state.token)
+        assertEquals(u.state.fencingToken, s.state.fencingToken)
     }
 
     @Test fun `an unknown of the episode itself blocks the gate`() {
@@ -173,9 +173,9 @@ class DispatchReviewTest {
     @Test fun `escalating while JobResponses are kept records them and clears the buffer`() {
         val d = dispatched()
         val early = d.evidence(jobResponse("jr-1"), d.state.enteredAt.plusMillis(300))
-        assertEquals(1, early.state.bufferedEvidence.size)
+        assertEquals(1, early.state.bufferedJobResponses.size)
         val taken = early.on(EpisodeEvent.TakenOver(OPERATOR), Episodes.T0.plusSeconds(80))
-        assertTrue(taken.state.bufferedEvidence.isEmpty())
+        assertTrue(taken.state.bufferedJobResponses.isEmpty())
         val rec = taken.records(RecordKind.EVIDENCE).single().entry.payload
         assertEquals("jr-1", rec.get("jobResponseId").textValue())
         assertEquals("kept, but the episode escalated", rec.get("why").textValue())

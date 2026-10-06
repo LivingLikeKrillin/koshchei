@@ -52,16 +52,16 @@ internal class EpisodeFuzzer(seed: Long) {
         if (s.phase in BEFORE_DISPATCH && r.nextInt(12) == 0) return EpisodeEvent.SymptomJoined(unknownLine(n))
         val a = s.attempt
         return when (s.phase) {
-            Phase.CORRELATING -> EpisodeEvent.DeadlineExpired(Timer.STATE, s.token)
+            Phase.CORRELATING -> EpisodeEvent.DeadlineExpired(Timer.PHASE, s.fencingToken)
             Phase.DIAGNOSING -> a?.let {
                 if (r.nextInt(8) == 0) EpisodeEvent.DiagnosisFailed(r.nextBoolean(), "fuzz") else EpisodeEvent.DiagnosisReturned(answer(it))
             }
-            Phase.AWAITING_APPROVAL -> if (r.nextInt(4) == 0) EpisodeEvent.DeadlineExpired(Timer.STATE, s.token) else a?.let { decide(it, stale = false) }
-            Phase.REVALIDATING -> EpisodeEvent.Revalidated(tri(), s.token)
+            Phase.AWAITING_APPROVAL -> if (r.nextInt(4) == 0) EpisodeEvent.DeadlineExpired(Timer.PHASE, s.fencingToken) else a?.let { decide(it, stale = false) }
+            Phase.REVALIDATING -> EpisodeEvent.Revalidated(tri(), s.fencingToken)
             Phase.UNKNOWN_PRECONDITION -> when (r.nextInt(4)) {
-                0 -> EpisodeEvent.DeadlineExpired(Timer.STATE, s.token)
-                1 -> EpisodeEvent.DeadlineExpired(Timer.RECHECK, s.token)
-                2 -> EpisodeEvent.Revalidated(tri(), s.token)
+                0 -> EpisodeEvent.DeadlineExpired(Timer.PHASE, s.fencingToken)
+                1 -> EpisodeEvent.DeadlineExpired(Timer.RECHECK, s.fencingToken)
+                2 -> EpisodeEvent.Revalidated(tri(), s.fencingToken)
                 else -> a?.let { confirmPrecondition(it, stale = false) }
             }
             Phase.DISPATCH_PENDING -> a?.let {
@@ -72,23 +72,23 @@ internal class EpisodeFuzzer(seed: Long) {
                     else -> EpisodeEvent.Recorded(it.intentSeq ?: 0)
                 }
             }
-            Phase.DISPATCHED -> if (r.nextInt(4) == 0) a?.let { evidence(it, n) } else EpisodeEvent.DispatchReturned(dispatchResult(), s.token)
+            Phase.DISPATCHED -> if (r.nextInt(4) == 0) a?.let { evidence(it, n) } else EpisodeEvent.DispatchReturned(dispatchResult(), s.fencingToken)
             // Two items held and the person says it was not done: the attempt ends and the items are left to be confirmed.
             Phase.UNKNOWN_OUTCOME if s.episodeUnknowns.size >= 2 && r.nextBoolean() ->
                 a?.let { EpisodeEvent.ConfirmedOutcome(it.candidate?.candidateId ?: "ESCALATE", it.proposalId, false, Episodes.OPERATOR) }
             Phase.AWAITING_EVIDENCE, Phase.UNKNOWN_OUTCOME -> when (r.nextInt(8)) {
-                0 -> EpisodeEvent.DeadlineExpired(Timer.STATE, s.token)
+                0 -> EpisodeEvent.DeadlineExpired(Timer.PHASE, s.fencingToken)
                 1, 2, 3, 4 -> a?.let { evidence(it, n) }
                 else -> a?.let { confirmOutcome(it, stale = false) }
             }
-            Phase.ESCALATED -> if (r.nextBoolean()) EpisodeEvent.Closed(Episodes.OPERATOR, "fuzz") else EpisodeEvent.DeadlineExpired(Timer.RETENTION, s.token)
+            Phase.ESCALATED -> if (r.nextBoolean()) EpisodeEvent.Closed(Episodes.OPERATOR, "fuzz") else EpisodeEvent.DeadlineExpired(Timer.RETENTION, s.fencingToken)
             Phase.RESOLVED, Phase.SUPERSEDED, Phase.CLOSED -> null
         }
     }
 
     private fun noise(s: EpisodeState, n: Int): EpisodeEvent {
         val a = s.attempt
-        val fallback = EpisodeEvent.DeadlineExpired(Timer.STATE, s.token - 1)
+        val fallback = EpisodeEvent.DeadlineExpired(Timer.PHASE, s.fencingToken - 1)
         return when (r.nextInt(14)) {
             0 -> EpisodeEvent.SymptomJoined(
                 when {
@@ -100,11 +100,11 @@ internal class EpisodeFuzzer(seed: Long) {
                     else -> Episodes.search(SEARCHES.random(r))
                 },
             )
-            1 -> EpisodeEvent.DeadlineExpired(listOf(Timer.STATE, Timer.RECHECK, Timer.RETENTION).random(r), s.token - r.nextLong(0, 3))
-            2 -> if (r.nextInt(4) == 0) EpisodeEvent.TakenOver(Episodes.OPERATOR) else EpisodeEvent.DeadlineExpired(Timer.RECHECK, s.token)
+            1 -> EpisodeEvent.DeadlineExpired(listOf(Timer.PHASE, Timer.RECHECK, Timer.RETENTION).random(r), s.fencingToken - r.nextLong(0, 3))
+            2 -> if (r.nextInt(4) == 0) EpisodeEvent.TakenOver(Episodes.OPERATOR) else EpisodeEvent.DeadlineExpired(Timer.RECHECK, s.fencingToken)
             3 -> if (r.nextInt(4) == 0) EpisodeEvent.AgentOff else fallback
-            4 -> EpisodeEvent.Revalidated(tri(), s.token - r.nextLong(0, 2))
-            5 -> EpisodeEvent.DispatchReturned(dispatchResult(), s.token - r.nextLong(0, 2))
+            4 -> EpisodeEvent.Revalidated(tri(), s.fencingToken - r.nextLong(0, 2))
+            5 -> EpisodeEvent.DispatchReturned(dispatchResult(), s.fencingToken - r.nextLong(0, 2))
             6 -> a?.let { decide(it, stale = r.nextBoolean()) } ?: fallback
             7 -> a?.let { confirmPrecondition(it, stale = r.nextBoolean()) } ?: fallback
             8 -> a?.let { confirmOutcome(it, stale = r.nextBoolean()) } ?: fallback

@@ -17,7 +17,7 @@ import io.temporal.client.WorkflowNotFoundException
  * consistent: an episode that opens during the broadcast may be missed — switching the policy file off first (§10.4)
  * covers it, since every new episode reads the policy at its start.
  */
-class AgentOffBroadcast(
+class KillSwitchBroadcast(
     private val client: WorkflowClient,
     private val openEpisodes: () -> List<String> = { openEpisodeIds(client) },
 ) {
