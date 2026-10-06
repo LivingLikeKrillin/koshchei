@@ -36,6 +36,74 @@ flowchart LR
 - **Resolution.** picasso's job responses come back through the watcher. The episode is DONE only when every approved unit completed, nothing has in-doubt status and the robot's connection state is ONLINE. Otherwise it stays UNKNOWN or goes to an operator.
 - **Interfaces.** The HTTP API `/api/episodes…` (`:api`, port 18190), the episodes screen in `ui/` (Vite dev server on port 5174), and a developer CLI (`:host:cli` with `open` and `agent-off <workflowId>|--all`).
 
+## A concrete bundle and episode example
+
+### A picasso bundle: a directory of search results and incidents
+
+A picasso bundle is a directory exported by picasso. It writes `incidents.jsonl` and `remedy-searches.jsonl` first, then `manifest.json` last, publishing each file by rename. koshchei reads LedgerExport schema `"5"`. The committed sample at `runtime/src/test/resources/picasso/run-1/` contains three files:
+
+- `manifest.json`: the export's `schemaVersion`, `runId`, and line counts for each file. koshchei reads only the first number of lines specified by `counts`.
+- `remedy-searches.jsonl`: records of remedy searches picasso made for a robot on a job order. The sample has 4 lines.
+- `incidents.jsonl`: one line per incident. The sample has 9 lines.
+
+The JSON below is trimmed to fields read from the sample. During processing, fields koshchei does not interpret are also preserved: whole lines go into narrator's diagnosis snapshot and the operator card's facts. The manifest likewise travels verbatim into the episode and diagnosis request.
+
+`manifest.json`:
+
+```json
+{"schemaVersion":"5","runId":"run-2026-09-22T16:47:37.854173400Z-1","counts":{"incidents":9,"remedySearches":4}}
+```
+
+The first line of `remedy-searches.jsonl`:
+
+```json
+{"searchId":"search-1","robotId":"hum-02","jobOrderId":"PATROL-1","outcome":"FOUND","steps":[{"skillType":"pick_place"}]}
+```
+
+This records picasso finding a remedy with one `pick_place` step for robot `hum-02` on job order `PATROL-1`. In the original line, the search happened at `00:00:01`. The other searches are `search-2` with `NONE`, `search-3` with `WITHHELD`, and `search-4` with `SOURCE_MISSING`. `WITHHELD` goes to an operator before diagnosis.
+
+The first line of `incidents.jsonl`:
+
+```json
+{"incidentId":"incident-1","jobOrderId":"PATROL-1","executionId":"exec-2","robotId":"hum-02","unitId":"remedy-1-pick_place","at":"2026-09-06T00:00:02Z","unresolved":false,"observation":{"linkBroken":false,"lateEvents":[],"progressObservable":true,"progressStalled":false},"verification":"NOT_REQUESTED","resolution":null,"digest":"d04ac2a20a63afc2ba147218bae871ef69746c990e3993deb00cfb4ddd262143"}
+```
+
+This records an incident at `00:00:02` on unit `remedy-1-pick_place` for the same robot and job order. Its original `failureClass` is `PAYLOAD_LOST`. koshchei uses `digest` to construct the episode event's `eventId`, `incident:<runId>:<digest>`, derives unknowns from `observation`, and derives operator-decision candidates from `unresolved`, `resolution`, and `verification`.
+
+Job responses are separate from this bundle. They arrive later in `job-responses.jsonl`, with one JobResponse per line under ResultExport schema 1. The watcher routes them to episodes by `jobOrderId`. There are no job responses in `run-1`; this trimmed example of the response format comes from a test:
+
+```json
+{"schemaVersion":"1","instanceId":"mw-1","jobResponseId":"resp-1","jobOrderId":"PATROL-1","executionId":"exec-1","physicalState":"PHYSICALLY_DONE","reachedEvidence":"E1","completedUnits":["remedy-1-pick_place"],"unverifiedUnits":[],"inDoubtUnits":[],"operatorRequired":false,"connection":"CONNECTION_STATE_ONLINE"}
+```
+
+### An episode: following the decisions and remedy for this symptom
+
+The quickstart below uses `KOSHCHEI_PICASSO=mock`, the default `KOSHCHEI_NARRATOR=mock`, and policy table v1. Opening with `--search search-1 --key koshchei-demo-1` creates an episode with workflow id `ep:koshchei-demo-1`. The CLI sends only the `search-1` line as a symptom, with `eventId` `search:<runId>:search-1`.
+
+Here, `<runId>` means the manifest's `runId` above. The CLI does not apply the correlation rule, so `incident-1` does not join the quickstart episode. If the watcher reads the same bundle, the matching `robotId` and `jobOrderId` put `search-1` and `incident-1` into one episode.
+
+The candidates for `search-1` are exactly `["APPROVE_REMEDY:hum-02:PATROL-1:pick_place","ESCALATE"]`. The mock narrator recommends the first candidate other than `ESCALATE`. This is its trimmed answer, with `<runId>` as the same placeholder:
+
+```json
+{"contractVersion":"0.6","episodeId":"ep:koshchei-demo-1/<runId>","attempt":1,"outcome":"RECOMMENDED","candidateId":"APPROVE_REMEDY:hum-02:PATROL-1:pick_place","citations":[{"title":"mock-sop","section":"1","verified":true}]}
+```
+
+The offered candidate id and candidates version match, and the answer has a verified citation, so diagnosis validation accepts it as a proposal. With auto-approval off, it waits for an operator. The path when the operator approves has these phases:
+
+| Phase | What happens in this example |
+|---|---|
+| `CORRELATING` | Waits 5 seconds for correlation. The whole-episode deadline of 1 hour also starts. |
+| `DIAGNOSING` | Sends a diagnosis request to `narrator-tq`. |
+| `AWAITING_APPROVAL` | Sends an `APPROVAL_NEEDED` notice and waits up to 5 minutes for approval. Rejection returns to `DIAGNOSING`; no response leads to `ESCALATED` (`APPROVAL_EXPIRED`). |
+| `REVALIDATING` | Checks the precondition again. The mock client answers `TRUE` while the proposal has not been consumed. |
+| `DISPATCH_PENDING` | Writes the dispatch intent record first. |
+| `DISPATCHED` | The mock approval client answers `APPROVED`, with `executionId` `mock-exec-1`, for unit `remedy-1-pick_place`. |
+| `AWAITING_EVIDENCE` | Waits for completion evidence. No job response arrives because the quickstart runs no watcher. |
+
+The episodes screen lists `ep:koshchei-demo-1` with its current phase. In the detail view, the operator card shows the original `search-1` line as facts, the `APPROVE_REMEDY` proposal with `robotId`, `jobOrderId`, and `searchId`, and the rationale and citation `mock-sop · 1`. The operator uses `Approve` / `Reject` in `AWAITING_APPROVAL`, and `DONE` / `NOT DONE` in `AWAITING_EVIDENCE`.
+
+Confirming `DONE` moves the episode to `RESOLVED`; confirming `NOT DONE` starts a new diagnosis attempt. After 10 minutes without completion evidence, it moves to `ESCALATED` (`EVIDENCE_EXPIRED`). An operator can then close it as `CLOSED`; otherwise, after 24 hours it becomes `CLOSED` with reason `UNATTENDED`. The bundle supplies the input records, and the episode follows diagnosis, approval, and outcome confirmation for those symptoms.
+
 ## What it runs with
 
 - picasso: koshchei sends approvals to picasso's approval endpoint (`POST /approvals`, schema 4) and reads picasso's job responses (JobResponse lines, ResultExport schema 1). The endpoint is loopback-only.

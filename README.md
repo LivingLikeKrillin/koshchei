@@ -30,6 +30,74 @@ koshchei는 로봇 셀에서 발생한 단일 고장을 첫 증상부터 최종 
 - **해결.** picasso의 작업 응답은 감시자를 거쳐 돌아옵니다. 승인된 실행 단계가 모두 완료되고, 의심 상태인 항목이 없으며, 로봇의 연결 상태가 ONLINE일 때만 에피소드가 DONE이 됩니다. 그렇지 않으면 UNKNOWN에 머물거나 운영자에게 인계합니다.
 - **인터페이스.** HTTP API `/api/episodes…`(`:api`, 포트 18190), `ui/`의 에피소드 화면(Vite 개발 서버 포트 5174), 개발자 CLI(`:host:cli`, `open`과 `agent-off <workflowId>|--all`)를 제공합니다.
 
+## 예제로 보는 picasso 번들과 에피소드
+
+### picasso 번들: 탐색 결과와 고장 기록을 담은 디렉터리
+
+picasso 번들은 picasso가 내보낸 디렉터리입니다. `incidents.jsonl`과 `remedy-searches.jsonl`을 먼저 쓰고 `manifest.json`을 마지막에 쓰며, 각 파일은 이름 변경으로 반영합니다. koshchei는 LedgerExport 스키마 `"5"`를 읽습니다. 커밋된 샘플 `runtime/src/test/resources/picasso/run-1/`에는 다음 세 파일이 있습니다.
+
+- `manifest.json`: 내보내기의 `schemaVersion`, `runId`, 파일별 줄 수입니다. koshchei는 `counts`에 지정된 수만큼 각 파일의 앞부분을 읽습니다.
+- `remedy-searches.jsonl`: 로봇의 작업 지시에 대해 picasso가 수행한 조치 탐색 기록입니다. 샘플에는 4줄이 있습니다.
+- `incidents.jsonl`: 인시던트 하나당 한 줄입니다. 샘플에는 9줄이 있습니다.
+
+아래 JSON은 샘플에서 읽는 필드만 남긴 예입니다. 실제 처리에서는 해석하지 않는 필드도 버리지 않고 원문 전체를 보존하여 narrator의 진단 스냅샷과 오퍼레이터 카드의 증상 목록에 전달합니다. `manifest.json`도 에피소드와 진단 요청에 원문 그대로 포함됩니다.
+
+`manifest.json`:
+
+```json
+{"schemaVersion":"5","runId":"run-2026-09-22T16:47:37.854173400Z-1","counts":{"incidents":9,"remedySearches":4}}
+```
+
+`remedy-searches.jsonl`의 첫 줄:
+
+```json
+{"searchId":"search-1","robotId":"hum-02","jobOrderId":"PATROL-1","outcome":"FOUND","steps":[{"skillType":"pick_place"}]}
+```
+
+이는 picasso가 로봇 `hum-02`의 작업 지시 `PATROL-1`에 대해 `pick_place` 실행 단계 하나로 구성된 조치를 찾았다는 기록입니다. 원문에서 탐색 시각은 `00:00:01`입니다. 나머지 탐색 결과는 `search-2`가 `NONE`, `search-3`가 `WITHHELD`, `search-4`가 `SOURCE_MISSING`입니다. `WITHHELD`는 진단 전에 운영자 인계로 이어집니다.
+
+`incidents.jsonl`의 첫 줄:
+
+```json
+{"incidentId":"incident-1","jobOrderId":"PATROL-1","executionId":"exec-2","robotId":"hum-02","unitId":"remedy-1-pick_place","at":"2026-09-06T00:00:02Z","unresolved":false,"observation":{"linkBroken":false,"lateEvents":[],"progressObservable":true,"progressStalled":false},"verification":"NOT_REQUESTED","resolution":null,"digest":"d04ac2a20a63afc2ba147218bae871ef69746c990e3993deb00cfb4ddd262143"}
+```
+
+이 기록은 같은 로봇과 작업 지시의 실행 단계 `remedy-1-pick_place`에서 `00:00:02`에 발생한 인시던트입니다. 원문의 `failureClass`는 `PAYLOAD_LOST`입니다. koshchei는 `digest`로 에피소드 이벤트의 `eventId`인 `incident:<runId>:<digest>`를 만들고, `observation`에서 미관측 조건을, `unresolved`·`resolution`·`verification`에서 운영자 결정 후보를 도출합니다.
+
+작업 응답은 이 번들에 들어 있지 않습니다. 나중에 별도 파일 `job-responses.jsonl`로 도착하며, ResultExport 스키마 1의 JobResponse 하나가 한 줄을 차지합니다. 감시자는 이를 `jobOrderId`로 에피소드에 전달합니다. `run-1`에는 작업 응답이 없으며, 다음은 테스트에서 가져온 응답 형식의 예입니다.
+
+```json
+{"schemaVersion":"1","instanceId":"mw-1","jobResponseId":"resp-1","jobOrderId":"PATROL-1","executionId":"exec-1","physicalState":"PHYSICALLY_DONE","reachedEvidence":"E1","completedUnits":["remedy-1-pick_place"],"unverifiedUnits":[],"inDoubtUnits":[],"operatorRequired":false,"connection":"CONNECTION_STATE_ONLINE"}
+```
+
+### 에피소드: 이 증상에 대한 판단과 조치의 진행 기록
+
+아래 빠른 시작은 `KOSHCHEI_PICASSO=mock`, 기본값인 `KOSHCHEI_NARRATOR=mock`, 정책 테이블 v1을 사용합니다. `open`에서 `--search search-1 --key koshchei-demo-1`을 지정하면 워크플로 ID `ep:koshchei-demo-1`인 에피소드가 열립니다. CLI는 `search-1` 한 줄만 증상으로 전달하며, `eventId`는 `search:<runId>:search-1`입니다.
+
+여기서 `<runId>`는 위 manifest의 `runId`를 뜻합니다. CLI는 상관 규칙을 적용하지 않으므로 빠른 시작의 에피소드에는 `incident-1`이 합류하지 않습니다. 감시자로 같은 번들을 읽으면 두 기록의 `robotId`와 `jobOrderId`가 같아 `search-1`과 `incident-1`이 하나의 에피소드로 묶입니다.
+
+`search-1`의 후보는 정확히 `["APPROVE_REMEDY:hum-02:PATROL-1:pick_place","ESCALATE"]`입니다. 목 narrator는 `ESCALATE`가 아닌 첫 후보를 권고합니다. 다음은 응답의 필드를 줄인 예이며, `<runId>`는 위와 같은 자리표시자입니다.
+
+```json
+{"contractVersion":"0.6","episodeId":"ep:koshchei-demo-1/<runId>","attempt":1,"outcome":"RECOMMENDED","candidateId":"APPROVE_REMEDY:hum-02:PATROL-1:pick_place","citations":[{"title":"mock-sop","section":"1","verified":true}]}
+```
+
+제시한 후보 ID와 후보 버전이 일치하고 검증된 인용이 있으므로 이 권고는 조치 제안으로 받아들여집니다. 자동 승인이 꺼져 있어 운영자의 승인을 기다립니다. 운영자가 승인하는 경로의 페이즈는 다음과 같습니다.
+
+| 페이즈 | 이 예에서 일어나는 일 |
+|---|---|
+| `CORRELATING` | 5초 동안 상관 대기합니다. 에피소드 전체의 제한 시간 1시간도 시작됩니다. |
+| `DIAGNOSING` | `narrator-tq`로 진단 요청을 보냅니다. |
+| `AWAITING_APPROVAL` | `APPROVAL_NEEDED` 알림을 보내고 최대 5분 동안 승인을 기다립니다. 거절하면 `DIAGNOSING`으로 돌아가며, 응답이 없으면 `ESCALATED` (`APPROVAL_EXPIRED`)로 전이합니다. |
+| `REVALIDATING` | 사전 조건을 재검증합니다. 목 클라이언트는 제안이 소모되지 않은 동안 `TRUE`로 응답합니다. |
+| `DISPATCH_PENDING` | 디스패치 의도 기록을 먼저 남깁니다. |
+| `DISPATCHED` | 목 승인 클라이언트가 실행 단계 `remedy-1-pick_place`에 대해 `APPROVED`, `executionId` `mock-exec-1`로 응답합니다. |
+| `AWAITING_EVIDENCE` | 완료 증빙을 기다립니다. 빠른 시작에는 감시자가 없어 작업 응답이 도착하지 않습니다. |
+
+에피소드 화면의 목록에는 `ep:koshchei-demo-1`과 현재 페이즈가 표시됩니다. 상세 화면의 오퍼레이터 카드에는 증상 목록인 `search-1` 원문, `APPROVE_REMEDY` 조치 제안과 `robotId`·`jobOrderId`·`searchId`, 이유와 인용 `mock-sop · 1`이 표시됩니다. `AWAITING_APPROVAL`에서는 `Approve` / `Reject`, `AWAITING_EVIDENCE`에서는 `DONE` / `NOT DONE` 버튼으로 결정합니다.
+
+운영자가 `DONE`을 확인하면 `RESOLVED`로 전이하고, `NOT DONE`을 확인하면 새 진단 호출로 이어집니다. 완료 증빙 없이 10분이 지나면 `ESCALATED` (`EVIDENCE_EXPIRED`)로 전이합니다. 이후 운영자가 에피소드를 닫으면 `CLOSED`가 되며, 닫지 않으면 24시간 뒤 `UNATTENDED` 사유로 `CLOSED`가 됩니다. 즉 번들은 입력 기록이고, 에피소드는 그 증상을 바탕으로 진단·승인·실행 결과 확인을 추적하는 단위입니다.
+
 ## 함께 사용하는 시스템
 
 - picasso: koshchei는 picasso 승인 엔드포인트(`POST /approvals`, 스키마 4)에 승인 요청을 보내고, picasso의 작업 응답(JobResponse 줄, ResultExport 스키마 1)을 읽습니다. 승인 엔드포인트는 루프백에서만 접근할 수 있습니다.
