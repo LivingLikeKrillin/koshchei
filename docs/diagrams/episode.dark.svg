@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="836" viewBox="0 0 840 836">
+  <defs>
+    <marker id="data" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1,1 L8,5 L1,9" fill="none" stroke="#e6e6e6" stroke-width="1.2"/></marker>
+    <marker id="obs" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1,1 L8,5 L1,9" fill="none" stroke="#9a9a9a" stroke-width="1.2"/></marker>
+    <marker id="cmd" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,1 L9,5 L0,9 Z" fill="#d4654a"/></marker>
+  </defs>
+  <g font-family="'Helvetica Neue', Helvetica, Arial, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', 'Noto Sans CJK KR', sans-serif" fill="#e6e6e6">
+    <text x="20" y="36" font-size="17" font-weight="700">빠른 시작 에피소드의 진행</text>
+    <text x="20" y="56" font-size="12" fill="#9a9a9a">승인과 완료 확인은 운영자가 결정하고, 제한 시간 만료는 운영자 인계로</text>
+    <rect x="270" y="96" width="300" height="60" fill="#232a3a" stroke="#8fa3cc" stroke-width="1.5"/>
+    <text x="282" y="118" font-size="12.5" font-weight="700" font-family="Menlo, Consolas, 'DejaVu Sans Mono', monospace">CORRELATING</text>
+    <text x="282" y="136" font-size="11" fill="#9a9a9a">상관 대기 5초</text>
+    <rect x="270" y="180" width="300" height="60" fill="#232a3a" stroke="#8fa3cc" stroke-width="1.5"/>
+    <text x="282" y="200" font-size="12.5" font-weight="700" font-family="Menlo, Consolas, 'DejaVu Sans Mono', monospace">DIAGNOSING</text>
+    <text x="282" y="216" font-size="11" fill="#9a9a9a">목 narrator의 권고</text>
+    <text x="282" y="231" font-size="11" font-family="Menlo, Consolas, 'DejaVu Sans Mono', monospace">APPROVE_REMEDY:hum-02:PATROL-1:pick_place</text>
+    <rect x="270" y="264" width="300" height="60" fill="#232a3a" stroke="#8fa3cc" stroke-width="1.5"/>
+    <text x="282" y="286" font-size="12.5" font-weight="700" font-family="Menlo, Consolas, 'DejaVu Sans Mono', monospace">AWAITING_APPROVAL</text>
+    <text x="282" y="304" font-size="11" fill="#9a9a9a">APPROVAL_NEEDED 알림 · 5분</text>
+    <rect x="270" y="348" width="300" height="60" fill="#232a3a" stroke="#8fa3cc" stroke-width="1.5"/>
+    <text x="282" y="370" font-size="12.5" font-weight="700" font-family="Menlo, Consolas, 'DejaVu Sans Mono', monospace">REVALIDATING</text>
+    <text x="282" y="388" font-size="11" fill="#9a9a9a">사전 조건 재검증 · 목 응답 TRUE</text>
+    <rect x="270" y="432" width="300" height="60" fill="#232a3a" stroke="#8fa3cc" stroke-width="1.5"/>
+    <text x="282" y="454" font-size="12.5" font-weight="700" font-family="Menlo, Consolas, 'DejaVu Sans Mono', monospace">DISPATCH_PENDING</text>
+    <text x="282" y="472" font-size="11" fill="#9a9a9a">디스패치 의도 기록을 먼저 남김</text>
+    <rect x="270" y="516" width="300" height="60" fill="#232a3a" stroke="#8fa3cc" stroke-width="1.5"/>
+    <text x="282" y="536" font-size="12.5" font-weight="700" font-family="Menlo, Consolas, 'DejaVu Sans Mono', monospace">DISPATCHED</text>
+    <text x="282" y="552" font-size="11" fill="#9a9a9a">목 승인 클라이언트의 응답</text>
+    <text x="282" y="567" font-size="11" font-family="Menlo, Consolas, 'DejaVu Sans Mono', monospace">APPROVED · mock-exec-1</text>
+    <rect x="270" y="600" width="300" height="60" fill="#232a3a" stroke="#8fa3cc" stroke-width="1.5"/>
+    <text x="282" y="622" font-size="12.5" font-weight="700" font-family="Menlo, Consolas, 'DejaVu Sans Mono', monospace">AWAITING_EVIDENCE</text>
+    <text x="282" y="640" font-size="11" fill="#9a9a9a">완료 증빙 10분 · 감시자 없음</text>
+    <rect x="270" y="684" width="300" height="60" fill="#1a1a1a" stroke="#e6e6e6" stroke-width="2"/>
+    <text x="282" y="706" font-size="12.5" font-weight="700" font-family="Menlo, Consolas, 'DejaVu Sans Mono', monospace">RESOLVED</text>
+    <text x="282" y="724" font-size="11" fill="#9a9a9a">완료 확인 · 종료 상태</text>
+    <rect x="24" y="432" width="200" height="60" fill="#232a3a" stroke="#8fa3cc" stroke-width="1.5"/>
+    <text x="36" y="454" font-size="12.5" font-weight="700" font-family="Menlo, Consolas, 'DejaVu Sans Mono', monospace">ESCALATED</text>
+    <text x="36" y="472" font-size="11" fill="#9a9a9a">운영자 인계</text>
+    <rect x="24" y="684" width="200" height="60" fill="#1a1a1a" stroke="#e6e6e6" stroke-width="2"/>
+    <text x="36" y="706" font-size="12.5" font-weight="700" font-family="Menlo, Consolas, 'DejaVu Sans Mono', monospace">CLOSED</text>
+    <text x="36" y="724" font-size="11" fill="#9a9a9a">에피소드 닫힘 · 종료 상태</text>
+    <path d="M420,156 V178" fill="none" stroke="#e6e6e6" stroke-width="1.2" marker-end="url(#data)"/>
+    <text x="428" y="171" font-size="10.5">대기 종료</text>
+    <path d="M420,240 V262" fill="none" stroke="#e6e6e6" stroke-width="1.2" marker-end="url(#data)"/>
+    <text x="428" y="255" font-size="10.5">narrator-tq 진단</text>
+    <path d="M420,324 V346" fill="none" stroke="#d4654a" stroke-width="2" marker-end="url(#cmd)"/>
+    <text x="428" y="339" font-size="10.5" fill="#d4654a">승인</text>
+    <path d="M420,408 V430" fill="none" stroke="#e6e6e6" stroke-width="1.2" marker-end="url(#data)"/>
+    <path d="M420,492 V514" fill="none" stroke="#e6e6e6" stroke-width="1.2" marker-end="url(#data)"/>
+    <path d="M420,576 V598" fill="none" stroke="#e6e6e6" stroke-width="1.2" marker-end="url(#data)"/>
+    <path d="M420,660 V682" fill="none" stroke="#d4654a" stroke-width="2" marker-end="url(#cmd)"/>
+    <text x="428" y="675" font-size="10.5" fill="#d4654a">DONE 확인</text>
+    <path d="M570,294 H600 V214 H572" fill="none" stroke="#d4654a" stroke-width="2" marker-end="url(#cmd)"/>
+    <text x="606" y="258" font-size="10.5" fill="#d4654a">거절</text>
+    <path d="M570,630 H664 V196 H572" fill="none" stroke="#d4654a" stroke-width="2" marker-end="url(#cmd)"/>
+    <text x="670" y="420" font-size="10.5" fill="#d4654a">NOT DONE · 재진단</text>
+    <path d="M270,294 H124 V430" fill="none" stroke="#9a9a9a" stroke-width="1.2" stroke-dasharray="5 3" marker-end="url(#obs)"/>
+    <text x="132" y="370" font-size="10.5" fill="#9a9a9a">5분 만료</text>
+    <path d="M270,630 H124 V494" fill="none" stroke="#9a9a9a" stroke-width="1.2" stroke-dasharray="5 3" marker-end="url(#obs)"/>
+    <text x="132" y="570" font-size="10.5" fill="#9a9a9a">10분 만료</text>
+    <path d="M60,492 V682" fill="none" stroke="#e6e6e6" stroke-width="1.2" marker-end="url(#data)"/>
+    <text x="68" y="664" font-size="10.5">운영자 닫기 / 24시간</text>
+    <text x="816" y="772" font-size="11" fill="#9a9a9a" text-anchor="end">에피소드 전체 제한 시간 1시간 → ESCALATED</text>
+    <text x="816" y="788" font-size="11" fill="#9a9a9a" text-anchor="end">어느 페이즈든 제어권 인수 → ESCALATED</text>
+    <path d="M20,816 H44" fill="none" stroke="#e6e6e6" stroke-width="1.2"/>
+    <text x="52" y="820" font-size="10.5" fill="#9a9a9a">자동 진행</text>
+    <path d="M140,816 H164" fill="none" stroke="#d4654a" stroke-width="2"/>
+    <text x="172" y="820" font-size="10.5" fill="#9a9a9a">운영자 결정</text>
+    <path d="M260,816 H284" fill="none" stroke="#9a9a9a" stroke-width="1.2" stroke-dasharray="5 3"/>
+    <text x="292" y="820" font-size="10.5" fill="#9a9a9a">시간 만료</text>
+    <rect x="380" y="808" width="16" height="12" fill="#1a1a1a" stroke="#e6e6e6" stroke-width="2"/>
+    <text x="404" y="820" font-size="10.5" fill="#9a9a9a">종료 상태</text>
+  </g>
+</svg>

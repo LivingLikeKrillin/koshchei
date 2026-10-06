@@ -32,21 +32,14 @@ koshchei는 로봇 셀에서 발생한 단일 고장을 첫 증상부터 최종 
 
 ## 예제로 보는 picasso 번들과 에피소드
 
-### picasso 번들: 탐색 결과와 고장 기록을 담은 디렉터리
+picasso 번들은 조치 탐색 기록과 인시던트 줄을 담아 picasso가 내보낸 디렉터리입니다. `incidents.jsonl`과 `remedy-searches.jsonl`을 먼저 쓰고 `manifest.json`을 마지막에 쓰며, 각 파일은 이름 변경으로 반영합니다.
 
-picasso 번들은 picasso가 내보낸 디렉터리입니다. `incidents.jsonl`과 `remedy-searches.jsonl`을 먼저 쓰고 `manifest.json`을 마지막에 쓰며, 각 파일은 이름 변경으로 반영합니다. koshchei는 LedgerExport 스키마 `"5"`를 읽습니다. 커밋된 샘플 `runtime/src/test/resources/picasso/run-1/`에는 다음 세 파일이 있습니다.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/bundle.dark.svg">
+  <img alt="번들에서 에피소드로 이어지는 두 경로. picasso가 쓰는 run-1/ 번들에는 manifest.json, remedy-searches.jsonl, incidents.jsonl이 있으며, manifest에는 runId와 incidents 9줄·remedySearches 4줄의 counts가 있다. 조치 탐색 기록 search-1은 로봇 hum-02, 작업 지시 PATROL-1, 결과 FOUND이고, incident-1도 같은 로봇과 작업 지시의 인시던트다. 위쪽 경로에서 :host:cli open --search search-1은 search-1만 전달하여 ep:koshchei-demo-1을 연다. 아래쪽 경로에서 감시자 :host:watcher는 robotId + jobOrderId가 일치하는 search-1과 incident-1을 상관하여 하나의 에피소드를 연다. 번들 밖의 job-responses.jsonl은 나중에 도착하며 점선 화살표로 감시자에게 전달된다. 실선은 증상 전달, 점선은 나중에 도착하는 작업 응답, 왼쪽 영역은 번들의 세 파일을 나타낸다. manifest 원문은 에피소드와 진단 요청에 포함되고, 해석하지 않는 필드도 원문으로 보존되어 증상 목록에 표시된다." src="docs/diagrams/bundle.svg">
+</picture>
 
-- `manifest.json`: 내보내기의 `schemaVersion`, `runId`, 파일별 줄 수입니다. koshchei는 `counts`에 지정된 수만큼 각 파일의 앞부분을 읽습니다.
-- `remedy-searches.jsonl`: 로봇의 작업 지시에 대해 picasso가 수행한 조치 탐색 기록입니다. 샘플에는 4줄이 있습니다.
-- `incidents.jsonl`: 인시던트 하나당 한 줄입니다. 샘플에는 9줄이 있습니다.
-
-아래 JSON은 샘플에서 읽는 필드만 남긴 예입니다. 실제 처리에서는 해석하지 않는 필드도 버리지 않고 원문 전체를 보존하여 narrator의 진단 스냅샷과 오퍼레이터 카드의 증상 목록에 전달합니다. `manifest.json`도 에피소드와 진단 요청에 원문 그대로 포함됩니다.
-
-`manifest.json`:
-
-```json
-{"schemaVersion":"5","runId":"run-2026-09-22T16:47:37.854173400Z-1","counts":{"incidents":9,"remedySearches":4}}
-```
+커밋된 샘플은 `runtime/src/test/resources/picasso/run-1/`에 있습니다. koshchei는 LedgerExport 스키마 `"5"`를 읽고, `counts`에 지정된 줄 수만큼 각 파일의 앞부분을 읽습니다. 아래 JSON은 샘플에서 읽는 필드만 남긴 예입니다.
 
 `remedy-searches.jsonl`의 첫 줄:
 
@@ -54,7 +47,7 @@ picasso 번들은 picasso가 내보낸 디렉터리입니다. `incidents.jsonl`�
 {"searchId":"search-1","robotId":"hum-02","jobOrderId":"PATROL-1","outcome":"FOUND","steps":[{"skillType":"pick_place"}]}
 ```
 
-이는 picasso가 로봇 `hum-02`의 작업 지시 `PATROL-1`에 대해 `pick_place` 실행 단계 하나로 구성된 조치를 찾았다는 기록입니다. 원문에서 탐색 시각은 `00:00:01`입니다. 나머지 탐색 결과는 `search-2`가 `NONE`, `search-3`가 `WITHHELD`, `search-4`가 `SOURCE_MISSING`입니다. `WITHHELD`는 진단 전에 운영자 인계로 이어집니다.
+`search-1`은 `00:00:01`에 `pick_place` 실행 단계 하나로 구성된 조치를 찾은 기록입니다. 다른 탐색 결과는 `search-2`가 `NONE`, `search-3`가 `WITHHELD`, `search-4`가 `SOURCE_MISSING`이며, `WITHHELD`는 진단 전에 운영자 인계로 이어집니다.
 
 `incidents.jsonl`의 첫 줄:
 
@@ -62,41 +55,24 @@ picasso 번들은 picasso가 내보낸 디렉터리입니다. `incidents.jsonl`�
 {"incidentId":"incident-1","jobOrderId":"PATROL-1","executionId":"exec-2","robotId":"hum-02","unitId":"remedy-1-pick_place","at":"2026-09-06T00:00:02Z","unresolved":false,"observation":{"linkBroken":false,"lateEvents":[],"progressObservable":true,"progressStalled":false},"verification":"NOT_REQUESTED","resolution":null,"digest":"d04ac2a20a63afc2ba147218bae871ef69746c990e3993deb00cfb4ddd262143"}
 ```
 
-이 기록은 같은 로봇과 작업 지시의 실행 단계 `remedy-1-pick_place`에서 `00:00:02`에 발생한 인시던트입니다. 원문의 `failureClass`는 `PAYLOAD_LOST`입니다. koshchei는 `digest`로 에피소드 이벤트의 `eventId`인 `incident:<runId>:<digest>`를 만들고, `observation`에서 미관측 조건을, `unresolved`·`resolution`·`verification`에서 운영자 결정 후보를 도출합니다.
+`incident-1`은 실행 단계 `remedy-1-pick_place`에서 `00:00:02`에 발생한 인시던트이며, 원문의 `failureClass`는 `PAYLOAD_LOST`입니다. 에피소드 이벤트의 `eventId`는 `incident:<runId>:<digest>`입니다. 별도 작업 응답은 ResultExport 스키마 1의 JobResponse 하나가 한 줄을 차지하며, 감시자는 `jobOrderId`로 전달할 에피소드를 찾습니다. `run-1`에는 작업 응답이 없습니다.
 
-작업 응답은 이 번들에 들어 있지 않습니다. 나중에 별도 파일 `job-responses.jsonl`로 도착하며, ResultExport 스키마 1의 JobResponse 하나가 한 줄을 차지합니다. 감시자는 이를 `jobOrderId`로 에피소드에 전달합니다. `run-1`에는 작업 응답이 없으며, 다음은 테스트에서 가져온 응답 형식의 예입니다.
+에피소드는 입력 증상을 바탕으로 진단·승인·실행 결과 확인을 추적하는 단위입니다. 아래 빠른 시작은 `KOSHCHEI_PICASSO=mock`, 기본값인 `KOSHCHEI_NARRATOR=mock`, 정책 테이블 v1을 사용합니다.
 
-```json
-{"schemaVersion":"1","instanceId":"mw-1","jobResponseId":"resp-1","jobOrderId":"PATROL-1","executionId":"exec-1","physicalState":"PHYSICALLY_DONE","reachedEvidence":"E1","completedUnits":["remedy-1-pick_place"],"unverifiedUnits":[],"inDoubtUnits":[],"operatorRequired":false,"connection":"CONNECTION_STATE_ONLINE"}
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/episode.dark.svg">
+  <img alt="빠른 시작 에피소드의 페이즈와 결정 경로. 주 경로는 CORRELATING에서 5초 상관 대기 후 DIAGNOSING으로 진행하고, narrator-tq 진단 호출에서 목 narrator가 APPROVE_REMEDY:hum-02:PATROL-1:pick_place를 권고한다. AWAITING_APPROVAL은 APPROVAL_NEEDED 알림을 보내고 5분 동안 기다린다. 운영자가 승인하면 REVALIDATING에서 사전 조건을 재검증하여 목 응답 TRUE를 받고, DISPATCH_PENDING에서 디스패치 의도 기록을 먼저 남긴 뒤 DISPATCHED에서 목 승인 클라이언트의 APPROVED · mock-exec-1 응답을 받는다. AWAITING_EVIDENCE는 완료 증빙을 10분 동안 기다리며, 빠른 시작에는 감시자가 없다. 운영자의 DONE 확인은 종료 상태 RESOLVED로, NOT DONE 확인은 DIAGNOSING으로 이어진다. 승인 거절도 DIAGNOSING으로 돌아간다. 승인 대기 5분 또는 증빙 대기 10분이 만료되면 ESCALATED로 운영자 인계되며, 운영자가 닫거나 24시간이 지나면 종료 상태 CLOSED가 된다. 에피소드 전체 제한 시간 1시간이 만료되어도 ESCALATED로 전이하고, 이미 ESCALATED인 경우를 제외한 어느 페이즈에서든 제어권 인수는 ESCALATED로 이어진다. 일반 실선은 자동 진행, 빨간 화살표는 운영자 결정, 점선은 시간 만료를 나타내며, RESOLVED와 CLOSED는 종료 상태로 표시된다." src="docs/diagrams/episode.svg">
+</picture>
 
-### 에피소드: 이 증상에 대한 판단과 조치의 진행 기록
-
-아래 빠른 시작은 `KOSHCHEI_PICASSO=mock`, 기본값인 `KOSHCHEI_NARRATOR=mock`, 정책 테이블 v1을 사용합니다. `open`에서 `--search search-1 --key koshchei-demo-1`을 지정하면 워크플로 ID `ep:koshchei-demo-1`인 에피소드가 열립니다. CLI는 `search-1` 한 줄만 증상으로 전달하며, `eventId`는 `search:<runId>:search-1`입니다.
-
-여기서 `<runId>`는 위 manifest의 `runId`를 뜻합니다. CLI는 상관 규칙을 적용하지 않으므로 빠른 시작의 에피소드에는 `incident-1`이 합류하지 않습니다. 감시자로 같은 번들을 읽으면 두 기록의 `robotId`와 `jobOrderId`가 같아 `search-1`과 `incident-1`이 하나의 에피소드로 묶입니다.
-
-`search-1`의 후보는 정확히 `["APPROVE_REMEDY:hum-02:PATROL-1:pick_place","ESCALATE"]`입니다. 목 narrator는 `ESCALATE`가 아닌 첫 후보를 권고합니다. 다음은 응답의 필드를 줄인 예이며, `<runId>`는 위와 같은 자리표시자입니다.
+`open`의 `--key koshchei-demo-1`이 워크플로 ID를 정하고, CLI가 전달하는 에피소드 이벤트의 `eventId`는 `search:<runId>:search-1`입니다. `<runId>`는 샘플 manifest의 `runId`를 뜻합니다. `search-1`의 후보는 정확히 `["APPROVE_REMEDY:hum-02:PATROL-1:pick_place","ESCALATE"]`이며, 목 narrator는 `ESCALATE`가 아닌 첫 후보를 권고합니다. 다음은 응답의 필드를 줄인 예입니다.
 
 ```json
 {"contractVersion":"0.6","episodeId":"ep:koshchei-demo-1/<runId>","attempt":1,"outcome":"RECOMMENDED","candidateId":"APPROVE_REMEDY:hum-02:PATROL-1:pick_place","citations":[{"title":"mock-sop","section":"1","verified":true}]}
 ```
 
-제시한 후보 ID와 후보 버전이 일치하고 검증된 인용이 있으므로 이 권고는 조치 제안으로 받아들여집니다. 자동 승인이 꺼져 있어 운영자의 승인을 기다립니다. 운영자가 승인하는 경로의 페이즈는 다음과 같습니다.
+제시한 후보 ID와 후보 버전이 일치하고 검증된 인용이 있어 판정에서 조치 제안으로 받아들입니다. 자동 승인이 꺼져 있어 운영자의 승인이 필요합니다. 목 클라이언트는 제안이 소모되지 않은 동안 사전 조건에 `TRUE`로 응답하며, 목 승인 클라이언트의 응답 대상은 실행 단계 `remedy-1-pick_place`입니다.
 
-| 페이즈 | 이 예에서 일어나는 일 |
-|---|---|
-| `CORRELATING` | 5초 동안 상관 대기합니다. 에피소드 전체의 제한 시간 1시간도 시작됩니다. |
-| `DIAGNOSING` | `narrator-tq`로 진단 요청을 보냅니다. |
-| `AWAITING_APPROVAL` | `APPROVAL_NEEDED` 알림을 보내고 최대 5분 동안 승인을 기다립니다. 거절하면 `DIAGNOSING`으로 돌아가며, 응답이 없으면 `ESCALATED` (`APPROVAL_EXPIRED`)로 전이합니다. |
-| `REVALIDATING` | 사전 조건을 재검증합니다. 목 클라이언트는 제안이 소모되지 않은 동안 `TRUE`로 응답합니다. |
-| `DISPATCH_PENDING` | 디스패치 의도 기록을 먼저 남깁니다. |
-| `DISPATCHED` | 목 승인 클라이언트가 실행 단계 `remedy-1-pick_place`에 대해 `APPROVED`, `executionId` `mock-exec-1`로 응답합니다. |
-| `AWAITING_EVIDENCE` | 완료 증빙을 기다립니다. 빠른 시작에는 감시자가 없어 작업 응답이 도착하지 않습니다. |
-
-에피소드 화면의 목록에는 `ep:koshchei-demo-1`과 현재 페이즈가 표시됩니다. 상세 화면의 오퍼레이터 카드에는 증상 목록인 `search-1` 원문, `APPROVE_REMEDY` 조치 제안과 `robotId`·`jobOrderId`·`searchId`, 이유와 인용 `mock-sop · 1`이 표시됩니다. `AWAITING_APPROVAL`에서는 `Approve` / `Reject`, `AWAITING_EVIDENCE`에서는 `DONE` / `NOT DONE` 버튼으로 결정합니다.
-
-운영자가 `DONE`을 확인하면 `RESOLVED`로 전이하고, `NOT DONE`을 확인하면 새 진단 호출로 이어집니다. 완료 증빙 없이 10분이 지나면 `ESCALATED` (`EVIDENCE_EXPIRED`)로 전이합니다. 이후 운영자가 에피소드를 닫으면 `CLOSED`가 되며, 닫지 않으면 24시간 뒤 `UNATTENDED` 사유로 `CLOSED`가 됩니다. 즉 번들은 입력 기록이고, 에피소드는 그 증상을 바탕으로 진단·승인·실행 결과 확인을 추적하는 단위입니다.
+화면 목록에는 워크플로 ID와 현재 페이즈가, 상세 오퍼레이터 카드에는 `search-1` 원문, 조치 제안, 이유와 인용 `mock-sop · 1`이 표시됩니다. 그림의 승인·거절은 `Approve` / `Reject` 버튼에 해당합니다. 승인 대기와 완료 증빙 대기의 만료 사유는 각각 `APPROVAL_EXPIRED`, `EVIDENCE_EXPIRED`이며, 24시간 뒤 자동으로 닫히는 사유는 `UNATTENDED`입니다.
 
 ## 함께 사용하는 시스템
 
