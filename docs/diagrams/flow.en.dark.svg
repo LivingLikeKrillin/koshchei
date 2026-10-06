@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="500" viewBox="0 0 840 500">
+  <defs>
+    <marker id="data" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1,1 L8,5 L1,9" fill="none" stroke="#e6e6e6" stroke-width="1.2"/></marker>
+    <marker id="obs" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1,1 L8,5 L1,9" fill="none" stroke="#9a9a9a" stroke-width="1.2"/></marker>
+    <marker id="cmd" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,1 L9,5 L0,9 Z" fill="#d4654a"/></marker>
+  </defs>
+  <g font-family="'Helvetica Neue', Helvetica, Arial, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', 'Noto Sans CJK KR', sans-serif" fill="#e6e6e6">
+    <text x="20" y="36" font-size="17" font-weight="700">Episode processing flow</text>
+    <text x="20" y="56" font-size="12" fill="#9a9a9a">From symptom receipt to diagnosis, operator approval, and job response</text>
+    <rect x="24" y="80" width="224" height="368" fill="none" stroke="#4a4a4a"/>
+    <text x="36" y="96" font-size="11" fill="#9a9a9a">picasso</text>
+    <rect x="304" y="80" width="256" height="368" fill="none" stroke="#8fa3cc"/>
+    <text x="316" y="96" font-size="11" fill="#8fa3cc" font-weight="700">koshchei</text>
+    <rect x="640" y="80" width="176" height="368" fill="none" stroke="#4a4a4a"/>
+    <text x="652" y="96" font-size="11" fill="#9a9a9a">narrator</text>
+    <rect x="36" y="116" width="196" height="52" fill="#1a1a1a" stroke="#4a4a4a"/>
+    <text x="48" y="137" font-size="12">picasso bundle</text>
+    <text x="48" y="153" font-size="11" fill="#9a9a9a">incidents, remedy searches</text>
+    <rect x="36" y="372" width="196" height="52" fill="#1a1a1a" stroke="#4a4a4a"/>
+    <text x="48" y="393" font-size="12">picasso approval endpoint</text>
+    <text x="48" y="409" font-size="11" fill="#9a9a9a">Receives approval requests</text>
+    <rect x="320" y="116" width="224" height="52" fill="#232a3a" stroke="#8fa3cc" stroke-width="1.5"/>
+    <text x="332" y="137" font-size="12.5" font-weight="700">watcher</text>
+    <text x="332" y="153" font-size="11" fill="#9a9a9a" font-family="Menlo, Consolas, 'DejaVu Sans Mono', monospace">:host:watcher</text>
+    <rect x="320" y="244" width="224" height="52" fill="#8fa3cc" stroke="#8fa3cc" stroke-width="1.5"/>
+    <rect x="324" y="248" width="216" height="44" fill="none" stroke="#1a1a1a" stroke-width="0.75" stroke-opacity="0.6"/>
+    <text x="332" y="265" font-size="12.5" fill="#1a1a1a" font-weight="700">episode workflow</text>
+    <text x="332" y="281" font-size="11" fill="#2b3f6b" font-family="Menlo, Consolas, 'DejaVu Sans Mono', monospace">:runtime·:core</text>
+    <rect x="320" y="372" width="224" height="52" fill="#232a3a" stroke="#8fa3cc" stroke-width="1.5"/>
+    <text x="332" y="393" font-size="12.5" font-weight="700">operator</text>
+    <text x="332" y="409" font-size="11" fill="#9a9a9a">episodes screen, :api</text>
+    <rect x="656" y="244" width="144" height="52" fill="#1a1a1a" stroke="#4a4a4a"/>
+    <text x="668" y="265" font-size="12" font-family="Menlo, Consolas, 'DejaVu Sans Mono', monospace">narrator</text>
+    <text x="668" y="281" font-size="11" fill="#9a9a9a">Diagnosis</text>
+    <path d="M232,142 H318" fill="none" stroke="#e6e6e6" stroke-width="1.2" marker-end="url(#data)"/>
+    <text x="252" y="135" font-size="10.5">Read</text>
+    <path d="M384,168 V242" fill="none" stroke="#e6e6e6" stroke-width="1.2" marker-end="url(#data)"/>
+    <text x="392" y="210" font-size="10.5">symptom</text>
+    <path d="M480,168 V242" fill="none" stroke="#e6e6e6" stroke-width="1.2" marker-end="url(#data)"/>
+    <text x="488" y="210" font-size="10.5">job response</text>
+    <path d="M600,270 H546" fill="none" stroke="#e6e6e6" stroke-width="1.2" marker-end="url(#data)"/>
+    <path d="M600,270 H654" fill="none" stroke="#e6e6e6" stroke-width="1.2" marker-end="url(#data)"/>
+    <text x="568" y="250" font-size="10.5" font-family="Menlo, Consolas, 'DejaVu Sans Mono', monospace">narrator-tq</text>
+    <text x="568" y="263" font-size="10.5">diagnose</text>
+    <path d="M432,372 V298" fill="none" stroke="#e6e6e6" stroke-width="1.2" marker-end="url(#data)"/>
+    <text x="440" y="338" font-size="10.5">approve / confirm</text>
+    <path d="M320,282 H200 V370" fill="none" stroke="#d4654a" stroke-width="2" marker-end="url(#cmd)"/>
+    <text x="192" y="330" font-size="10.5" fill="#d4654a" text-anchor="end" font-family="Menlo, Consolas, 'DejaVu Sans Mono', monospace">POST /approvals</text>
+    <path d="M60,372 V196 H336 V170" fill="none" stroke="#9a9a9a" stroke-width="1.2" stroke-dasharray="5 3" marker-end="url(#obs)"/>
+    <text x="68" y="190" font-size="10.5" fill="#9a9a9a">JobResponse·ResultExport 1</text>
+    <path d="M20,480 H44" fill="none" stroke="#e6e6e6" stroke-width="1.2"/>
+    <text x="52" y="484" font-size="10.5" fill="#9a9a9a">Data flow</text>
+    <path d="M124,480 H148" fill="none" stroke="#9a9a9a" stroke-width="1.2" stroke-dasharray="5 3"/>
+    <text x="156" y="484" font-size="10.5" fill="#9a9a9a">Observation</text>
+    <path d="M240,480 H264" fill="none" stroke="#d4654a" stroke-width="2"/>
+    <text x="272" y="484" font-size="10.5" fill="#9a9a9a">Command, write</text>
+    <rect x="376" y="472" width="16" height="12" fill="#232a3a" stroke="#8fa3cc" stroke-width="1.5"/>
+    <text x="400" y="484" font-size="10.5" fill="#9a9a9a">This repo</text>
+    <rect x="476" y="472" width="16" height="12" fill="none" stroke="#4a4a4a"/>
+    <text x="500" y="484" font-size="10.5" fill="#9a9a9a">External system</text>
+  </g>
+</svg>
