@@ -13,8 +13,12 @@ enum class ExportKind(val file: BundleFile) {
  * and the watcher so both send the same `eventId` for the same line (design §7.2 구현(B3c), §12).
  */
 object ExportSymptoms {
-    /** picasso `LedgerExport.SCHEMA_VERSION` this reader was written against (picasso `8ab5400`). */
-    val SCHEMA_VERSIONS = setOf("5")
+    /**
+     * picasso `LedgerExport.SCHEMA_VERSION`s this reader knows: "5" (picasso `8ab5400`) and "6" (picasso `8f0cc04`, same
+     * incident-line fields; a SIGNAL route and a new digest shape, neither of which this reader interprets). The diagnosis
+     * snapshot still takes only "5" ([koshchei.core.Snapshot.SCHEMA_VERSION]), so a schema-6 episode goes to an operator.
+     */
+    val SCHEMA_VERSIONS = setOf("5", "6")
 
     /** Incidents first, then searches: the order picasso writes them, and the order the watcher sends them. */
     fun read(dir: Path): BundleRead =
