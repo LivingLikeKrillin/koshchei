@@ -58,6 +58,14 @@ class EpisodeLifecycleTest {
         assertTrue(manifest.state.escalation!!.detail!!.startsWith("snapshot:"))
     }
 
+    @Test fun `a schema 6 export opens an episode that goes to an operator, since narrator reads only schema 5`() {
+        val six = PicassoRun1.manifest.replace("\"schemaVersion\":\"5\"", "\"schemaVersion\":\"6\"")
+        val s = startEpisode(EpisodeEvent.Opened(INSTANCE, six, Episodes.search("search-1")), policy(), T0)
+        assertEquals(EscalationReason.DIAGNOSIS_FAILED, s.reason)
+        assertTrue(s.state.escalation!!.detail!!.startsWith("snapshot: manifest.schemaVersion"))
+        assertTrue(s.commands.none { it is Command.Diagnose })
+    }
+
     @Test fun `a table that expires mid-episode stops decisions even without a fresh read`() {
         val s = open(read = policy { put("expiresAt", "2026-10-01T00:00:10Z") })
         assertEquals(Phase.CORRELATING, s.state.phase)

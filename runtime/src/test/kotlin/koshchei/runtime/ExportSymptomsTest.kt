@@ -1,5 +1,7 @@
 package koshchei.runtime
 
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,6 +31,18 @@ class ExportSymptomsTest {
         val incident = r.lines.getValue(ExportKind.INCIDENT.file.name).first()
         assertEquals("incident:$runId:d04ac2a20a63afc2ba147218bae871ef69746c990e3993deb00cfb4ddd262143",
             ExportSymptoms.symptom(ExportKind.INCIDENT, r, incident, 0)!!.eventId)
+    }
+
+    @Test fun `an export of schema 6 reads like schema 5, an unknown schema is broken`(@TempDir dir: Path) {
+        Files.list(run1).use { files -> files.forEach { Files.copy(it, dir.resolve(it.fileName)) } }
+        val manifest = dir.resolve("manifest.json")
+        val five = Files.readString(manifest)
+        Files.writeString(manifest, five.replace("\"schemaVersion\":\"5\"", "\"schemaVersion\":\"6\""))
+        val r = assertIs<BundleRead.Ready>(ExportSymptoms.read(dir))
+        assertEquals(9, r.lines.getValue(ExportKind.INCIDENT.file.name).size)
+        assertEquals(4, r.lines.getValue(ExportKind.SEARCH.file.name).size)
+        Files.writeString(manifest, five.replace("\"schemaVersion\":\"5\"", "\"schemaVersion\":\"7\""))
+        assertIs<BundleRead.Broken>(ExportSymptoms.read(dir))
     }
 
     @Test fun `an incident without a digest has no symptom`() {
