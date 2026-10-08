@@ -15,8 +15,8 @@ enum class ExportKind(val file: BundleFile) {
 object ExportSymptoms {
     /**
      * picasso `LedgerExport.SCHEMA_VERSION`s this reader knows: "5" (picasso `8ab5400`) and "6" (picasso `8f0cc04`, same
-     * incident-line fields; a SIGNAL route and a new digest shape, neither of which this reader interprets). The diagnosis
-     * snapshot still takes only "5" ([koshchei.core.Snapshot.SCHEMA_VERSION]), so a schema-6 episode goes to an operator.
+     * incident-line fields; a SIGNAL route and a new digest shape, neither of which this reader interprets). The same list
+     * as the diagnosis snapshot's ([koshchei.core.Snapshot.SCHEMA_VERSIONS]).
      */
     val SCHEMA_VERSIONS = setOf("5", "6")
 

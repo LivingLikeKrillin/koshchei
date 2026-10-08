@@ -24,6 +24,16 @@ class SnapshotTest {
         assertTrue(m.get("schemaVersion").isTextual)
     }
 
+    @Test fun `schemaVersion 6 is read as 5 is, other versions are rejected`() {
+        val search = listOf(PicassoRun1.search("search-1"))
+        val six = manifest.replace("\"schemaVersion\":\"5\"", "\"schemaVersion\":\"6\"")
+        assertEquals("6", Snapshot.parse(six, emptyList(), search).manifest.text("schemaVersion"))
+        for (other in listOf("4", "7")) {
+            val m = manifest.replace("\"schemaVersion\":\"5\"", "\"schemaVersion\":\"$other\"")
+            assertFailsWith<IllegalArgumentException> { Snapshot.parse(m, emptyList(), search) }
+        }
+    }
+
     @Test fun `a numeric schemaVersion is rejected`() {
         val numeric = manifest.replace("\"schemaVersion\":\"5\"", "\"schemaVersion\":5")
         assertFailsWith<IllegalArgumentException> { Snapshot.parse(numeric, emptyList(), listOf(PicassoRun1.search("search-1"))) }

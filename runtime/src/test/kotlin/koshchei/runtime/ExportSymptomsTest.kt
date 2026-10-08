@@ -45,6 +45,16 @@ class ExportSymptomsTest {
         assertIs<BundleRead.Broken>(ExportSymptoms.read(dir))
     }
 
+    @Test fun `the committed schema 6 sample reads as nine incidents and four searches`() {
+        val sample = Path.of(checkNotNull(javaClass.getResource("/picasso/schema-6/run-1/manifest.json")).toURI()).parent
+        val r = assertIs<BundleRead.Ready>(ExportSymptoms.read(sample))
+        assertEquals("run-2026-10-08T04:29:08.150947600Z-1", r.runId)
+        assertEquals(9, r.lines.getValue(ExportKind.INCIDENT.file.name).size)
+        assertEquals(4, r.lines.getValue(ExportKind.SEARCH.file.name).size)
+        val search = r.lines.getValue(ExportKind.SEARCH.file.name).first()
+        assertEquals("search:${r.runId}:search-1", ExportSymptoms.symptom(ExportKind.SEARCH, r, search, 0)!!.eventId)
+    }
+
     @Test fun `an incident without a digest has no symptom`() {
         val line = BundleLine(1, "incident-x", """{"incidentId":"incident-x"}""", strictJson.readTree("""{"incidentId":"incident-x"}"""))
         val r = BundleRead.Ready("run", "{}", emptyMap())
