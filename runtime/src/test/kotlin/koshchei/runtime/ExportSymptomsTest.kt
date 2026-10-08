@@ -1,5 +1,7 @@
 package koshchei.runtime
 
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,6 +31,28 @@ class ExportSymptomsTest {
         val incident = r.lines.getValue(ExportKind.INCIDENT.file.name).first()
         assertEquals("incident:$runId:d04ac2a20a63afc2ba147218bae871ef69746c990e3993deb00cfb4ddd262143",
             ExportSymptoms.symptom(ExportKind.INCIDENT, r, incident, 0)!!.eventId)
+    }
+
+    @Test fun `an export of schema 6 reads like schema 5, an unknown schema is broken`(@TempDir dir: Path) {
+        Files.list(run1).use { files -> files.forEach { Files.copy(it, dir.resolve(it.fileName)) } }
+        val manifest = dir.resolve("manifest.json")
+        val five = Files.readString(manifest)
+        Files.writeString(manifest, five.replace("\"schemaVersion\":\"5\"", "\"schemaVersion\":\"6\""))
+        val r = assertIs<BundleRead.Ready>(ExportSymptoms.read(dir))
+        assertEquals(9, r.lines.getValue(ExportKind.INCIDENT.file.name).size)
+        assertEquals(4, r.lines.getValue(ExportKind.SEARCH.file.name).size)
+        Files.writeString(manifest, five.replace("\"schemaVersion\":\"5\"", "\"schemaVersion\":\"7\""))
+        assertIs<BundleRead.Broken>(ExportSymptoms.read(dir))
+    }
+
+    @Test fun `the committed schema 6 sample reads as nine incidents and four searches`() {
+        val sample = Path.of(checkNotNull(javaClass.getResource("/picasso/schema-6/run-1/manifest.json")).toURI()).parent
+        val r = assertIs<BundleRead.Ready>(ExportSymptoms.read(sample))
+        assertEquals("run-2026-10-08T04:29:08.150947600Z-1", r.runId)
+        assertEquals(9, r.lines.getValue(ExportKind.INCIDENT.file.name).size)
+        assertEquals(4, r.lines.getValue(ExportKind.SEARCH.file.name).size)
+        val search = r.lines.getValue(ExportKind.SEARCH.file.name).first()
+        assertEquals("search:${r.runId}:search-1", ExportSymptoms.symptom(ExportKind.SEARCH, r, search, 0)!!.eventId)
     }
 
     @Test fun `an incident without a digest has no symptom`() {

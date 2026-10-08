@@ -176,7 +176,7 @@ The developer CLI, executed through `./gradlew :host:cli`, opens an individual e
 ./gradlew :host:cli --args="agent-off --all"
 ```
 
-The commands run unchanged in PowerShell; give a Windows absolute path there, still inside single quotes. The examples pass `--key` with a koshchei-specific prefix; see ["Sharing Temporal"](#sharing-temporal) in §1. The repository includes sample bundle files located at `runtime/src/test/resources/picasso/run-1`, containing four search entries and nine incident records. When referencing these sample files, supply an absolute filesystem path, because `:host:cli` runs with `host/` as its working directory.
+The commands run unchanged in PowerShell; give a Windows absolute path there, still inside single quotes. The examples pass `--key` with a koshchei-specific prefix; see ["Sharing Temporal"](#sharing-temporal) in §1. The quickstart uses the committed schema version `"6"` sample bundle at `runtime/src/test/resources/picasso/schema-6/run-1/`, containing four remedy-search entries and nine incident records. The older schema version `"5"` sample at `runtime/src/test/resources/picasso/run-1/` remains in the repository and is used by the tests. When referencing these sample files, supply an absolute filesystem path, because `:host:cli` runs with `host/` as its working directory.
 
 ### Decide: the HTTP API and the episodes screen
 

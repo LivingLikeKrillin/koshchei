@@ -39,7 +39,7 @@ A picasso bundle is a directory exported by picasso containing remedy search rec
   <img alt="Two paths from a bundle to an episode. The run-1/ bundle written by picasso contains manifest.json, remedy-searches.jsonl, and incidents.jsonl; the manifest holds runId and counts of 9 incident lines and 4 remedy search lines. Search record search-1 has robot hum-02, job order PATROL-1, and outcome FOUND; incident-1 has the same robot and job order. On the upper path, :host:cli open --search search-1 sends only search-1 and opens ep:koshchei-demo-1. On the lower path, watcher :host:watcher correlates search-1 and incident-1 by matching robotId + jobOrderId and opens one episode containing both. Outside the bundle, job-responses.jsonl arrives later and reaches the watcher along a dashed arrow. Solid lines represent symptom delivery, the dashed line represents later job responses, and the left zone encloses the bundle's three files. The manifest travels verbatim into the episode and diagnosis request; uninterpreted fields are also preserved verbatim and displayed as facts." src="docs/diagrams/bundle.en.svg">
 </picture>
 
-The committed sample is at `runtime/src/test/resources/picasso/run-1/`. koshchei reads LedgerExport schema `"5"` and only the first number of lines specified by `counts` in each file. The JSON below is trimmed to fields read from the sample.
+The committed sample is at `runtime/src/test/resources/picasso/schema-6/run-1/`. koshchei reads LedgerExport schema versions `"5"` and `"6"` and only the first number of lines specified by `counts` in each file, and refuses any other schema version (the watcher records the bundle as broken and the CLI stops with an error). The diagnosis snapshot and narrator also accept both schema versions `"5"` and `"6"`, so an episode opened from a schema version `"6"` bundle is diagnosed like a schema version `"5"` episode. The JSON below is trimmed to fields read from the sample.
 
 The first line of `remedy-searches.jsonl`:
 
@@ -52,7 +52,7 @@ The first line of `remedy-searches.jsonl`:
 The first line of `incidents.jsonl`:
 
 ```json
-{"incidentId":"incident-1","jobOrderId":"PATROL-1","executionId":"exec-2","robotId":"hum-02","unitId":"remedy-1-pick_place","at":"2026-09-06T00:00:02Z","unresolved":false,"observation":{"linkBroken":false,"lateEvents":[],"progressObservable":true,"progressStalled":false},"verification":"NOT_REQUESTED","resolution":null,"digest":"d04ac2a20a63afc2ba147218bae871ef69746c990e3993deb00cfb4ddd262143"}
+{"incidentId":"incident-1","jobOrderId":"PATROL-1","executionId":"exec-2","robotId":"hum-02","unitId":"remedy-1-pick_place","at":"2026-09-06T00:00:02Z","unresolved":false,"observation":{"linkBroken":false,"lateEvents":[],"progressObservable":true,"progressStalled":false},"verification":"NOT_REQUESTED","resolution":null,"digest":"3e0e655dd7176552ad3b85741e57008f35716cb33dc3ac786271a7553911e656"}
 ```
 
 `incident-1` occurred on unit `remedy-1-pick_place` at `00:00:02`; its original `failureClass` is `PAYLOAD_LOST`. Its episode event's `eventId` is `incident:<runId>:<digest>`. Separate job responses contain one JobResponse per line under ResultExport schema 1, and the watcher finds the receiving episode by `jobOrderId`. `run-1` has no job responses.
@@ -117,15 +117,15 @@ Paths inside `--args` must be single-quoted (`'…'`); Gradle splits `--args` on
 ```bash
 # terminal 4: open one episode from the committed sample export
 # Linux / macOS
-./gradlew :host:cli --args="open --export '$PWD/runtime/src/test/resources/picasso/run-1' --search search-1 --key koshchei-demo-1"
+./gradlew :host:cli --args="open --export '$PWD/runtime/src/test/resources/picasso/schema-6/run-1' --search search-1 --key koshchei-demo-1"
 
 # Git Bash on Windows
-./gradlew :host:cli --args="open --export '$(pwd -W)/runtime/src/test/resources/picasso/run-1' --search search-1 --key koshchei-demo-1"
+./gradlew :host:cli --args="open --export '$(pwd -W)/runtime/src/test/resources/picasso/schema-6/run-1' --search search-1 --key koshchei-demo-1"
 ```
 
 ```powershell
 # terminal 4, PowerShell
-./gradlew :host:cli --args="open --export '$PWD\runtime\src\test\resources\picasso\run-1' --search search-1 --key koshchei-demo-1"
+./gradlew :host:cli --args="open --export '$PWD\runtime\src\test\resources\picasso\schema-6\run-1' --search search-1 --key koshchei-demo-1"
 ```
 
 Set the same `KOSHCHEI_PICASSO` in every shell that starts the worker or the watcher: each process reads only its own environment. With `KOSHCHEI_PICASSO=mock`, remedies reach no robot; the worker prints a warning at start. The `:host:cli` task runs with `host/` as its working directory, so the bundle path must be absolute. After episode opening, go to http://localhost:5174; under policy table v1 the episode waits for an operator's approval before dispatching to the mock approval client, and because no watcher runs in this quickstart, no job response arrives: an operator confirms the outcome or the evidence deadline (10 minutes in policy table v1) hands the episode to an operator. The full guide, including the watcher and the live approval endpoint, is `docs/usage.md`.
