@@ -10,6 +10,7 @@ import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class EpisodeEndToEndTest {
@@ -52,6 +53,20 @@ class EpisodeEndToEndTest {
         assertTrue(intent in 0 until result, "the intent is stored before the result: ${events.map { it.kind }}")
         assertTrue("mock-exec-1" in events[result].payloadJson, events[result].payloadJson)
         eventually { store.notices(waiting.instanceId).takeIf { n -> n.any { "APPROVAL_NEEDED" in it } } }   // the person was told
+    }
+
+    @Test fun `policy v1 - the schema 6 sample opened as the CLI opens it reaches the same dispatch`() {
+        val e = start(v1)
+        val sample = Path.of(checkNotNull(javaClass.getResource("/picasso/schema-6/run-1/manifest.json")).toURI()).parent
+        val export = assertIs<BundleRead.Ready>(ExportSymptoms.read(sample))
+        val line = export.lines.getValue(ExportKind.SEARCH.file.name).single { it.id == "search-1" }
+        val ep = client.openEpisode(symptom = ExportSymptoms.symptom(ExportKind.SEARCH, export, line, 0)!!,
+            start = EpisodeStart(export.manifestJson))
+        val waiting = ep.until(e) { it.phase == "AWAITING_APPROVAL" }
+        assertEquals("ACCEPTED", ep.decide(DecideRequest(waiting.proposalId!!, waiting.candidatesVersion!!, true, "op-1")))
+        ep.until(e) { it.phase == "AWAITING_EVIDENCE" }
+        val events = stored(waiting.instanceId) { r -> r.any { it.kind == "DISPATCH_RESULT" } }
+        assertTrue("mock-exec-1" in events.single { it.kind == "DISPATCH_RESULT" }.payloadJson)
     }
 
     @Test fun `R2 - an answer lost before it was stored is an unknown outcome, never a second remedy`() {

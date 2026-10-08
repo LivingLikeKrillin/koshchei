@@ -20,8 +20,8 @@ class Snapshot(manifest: ObjectNode, incidents: List<ObjectNode>, searches: List
     // re-rendered by Jackson. run-1 has none, and the canonical hash (Jcs) refuses numbers outright.
     init {
         val sv = manifest.get("schemaVersion")
-        require(sv != null && sv.isTextual && sv.textValue() == SCHEMA_VERSION) {
-            "manifest.schemaVersion must be the string \"$SCHEMA_VERSION\", was $sv"
+        require(sv != null && sv.isTextual && sv.textValue() in SCHEMA_VERSIONS) {
+            "manifest.schemaVersion must be one of the strings $SCHEMA_VERSIONS, was $sv"
         }
         require(incidents.isNotEmpty() || searches.isNotEmpty()) { "a snapshot needs at least one incident or search line" }
         incidents.forEach { require(!it.text("digest").isNullOrBlank()) { "incident line without digest: ${it.get("incidentId")}" } }
@@ -35,8 +35,11 @@ class Snapshot(manifest: ObjectNode, incidents: List<ObjectNode>, searches: List
     }
 
     companion object {
-        /** The only picasso export schema narrator reads (contract 0.6 §3). */
-        const val SCHEMA_VERSION = "5"
+        /**
+         * The picasso export schemas narrator reads (contract 0.6 §3): "5", and "6" since narrator `2e29bf3`
+         * (2026-10-08), the same list as this module's export reader.
+         */
+        val SCHEMA_VERSIONS = setOf("5", "6")
 
         fun parse(manifestJson: String, incidentLines: List<String>, searchLines: List<String>): Snapshot =
             Snapshot(obj(manifestJson), incidentLines.map(::obj), searchLines.map(::obj))
