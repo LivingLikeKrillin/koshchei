@@ -52,7 +52,7 @@ The first line of `remedy-searches.jsonl`:
 The first line of `incidents.jsonl`:
 
 ```json
-{"incidentId":"incident-1","jobOrderId":"PATROL-1","executionId":"exec-2","robotId":"hum-02","unitId":"remedy-1-pick_place","at":"2026-09-06T00:00:02Z","unresolved":false,"observation":{"linkBroken":false,"lateEvents":[],"progressObservable":true,"progressStalled":false},"verification":"NOT_REQUESTED","resolution":null,"digest":"3e0e655dd7176552ad3b85741e57008f35716cb33dc3ac786271a7553911e656"}
+{"incidentId":"incident-1","jobOrderId":"PATROL-1","executionId":"exec-2","robotId":"hum-02","unitId":"remedy-1-pick_place","at":"2026-09-06T00:00:02Z","unresolved":false,"observation":{"linkBroken":false,"lateEvents":[],"progressObservable":true,"progressStalled":false},"verification":"NOT_REQUESTED","resolution":null,"digest":"a4a40278620c1cdc3904f3d4138a39a57fa62b3b63bc99f8b08291f72a24ee5a"}
 ```
 
 `incident-1` occurred on unit `remedy-1-pick_place` at `00:00:02`; its original `failureClass` is `PAYLOAD_LOST`. Its episode event's `eventId` is `incident:<runId>:<digest>`. Separate job responses contain one JobResponse per line under ResultExport schema 1, and the watcher finds the receiving episode by `jobOrderId`. `run-1` has no job responses.
