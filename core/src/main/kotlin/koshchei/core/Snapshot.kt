@@ -36,7 +36,7 @@ class Snapshot(manifest: ObjectNode, incidents: List<ObjectNode>, searches: List
 
     companion object {
         /**
-         * The picasso export schemas narrator reads (contract 0.6 §3): "5", and "6" since narrator `2e29bf3`
+         * The picasso export schemas narrator reads (contract 0.6 §3): "5", and "6" since narrator `376d082`
          * (2026-10-08), the same list as this module's export reader.
          */
         val SCHEMA_VERSIONS = setOf("5", "6")
