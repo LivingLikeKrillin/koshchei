@@ -575,7 +575,7 @@ Update 의 답(`Reply`, 거절도 값)이다. PROPOSED 는 순간 상태라 `Pha
     에피소드에 넣을 수 있다.
 - CLI 는 이제 감시자와 같은 `ExportSymptoms` · `Bundles` 로 읽는다(§12 구현(C1)). 그래서 CLI 가 보내는 줄은 감시자가 보낼 줄이고,
   `eventId` 도 같다.
-  - manifest 에 `schemaVersion "5"` 와 `counts` 가 있어야 한다.
+  - manifest 에 `schemaVersion "5"` 또는 `schemaVersion "6"` 와 `counts` 가 있어야 한다.
   - `counts` 뒤의 줄은 읽지 않는다.
   - 두 jsonl 파일 어디든 깨진 줄이나 겹친 id 가 있으면 열지 않는다. 깨진 사건 줄은 `--search` 도 막는다.
   - 묶음이 아직 다 쓰이지 않았으면(manifest 없음, 줄이 모자람, 읽는 사이 manifest 가 바뀜) 사유 한 줄과 「not ready yet; read again once
@@ -867,8 +867,8 @@ catalog)** 에 선언한다. 항목: 사가 정의 `name@x.y.z`, 값의 출처(�
 ### 9.0 진단 스냅샷의 모양
 
 - `snapshot.manifest` 는 picasso 가 쓴 `manifest.json` 의 칸을 **전부 그대로** 싣는다(`schemaVersion` · `runId` · `writtenAt` ·
-  `virtualNow` · `contractSemver` · `counts`). 형도 바꾸지 않는다 — 예: `schemaVersion` 은 글자 `"5"` 다. narrator 는 아는 판만 읽고
-  다른 판이면 비재시도 예외로 멈춘다(§8.1 의 "계약 판 불일치" 와 같은 갈래 → `DIAGNOSIS_FAILED`).
+  `virtualNow` · `contractSemver` · `counts`). 형도 바꾸지 않는다 — 예: `schemaVersion` 은 글자 `"5"` 또는 `"6"` 다. narrator 는 아는 버전만 읽고
+  다른 버전이면 비재시도 예외로 멈춘다(§8.1 의 "계약 판 불일치" 와 같은 갈래 → `DIAGNOSIS_FAILED`).
 - `snapshot.incidents` · `snapshot.searches` 는 **에피소드를 연 줄을 각 목록의 첫째**에 둔다. narrator 는 v1 에서 incidents 의 첫째를
   주체, searches 의 첫째를 짝으로 질의에 옮기고(사건 줄이 없으면 searches 의 첫째만), 합류한 증상(둘째 줄부터)은 싣지 않는다.
   짝은 지어낸 것이 아니라 §12 의 결정적 병합 규칙이 묶은 것이다.
@@ -1227,7 +1227,7 @@ narrator 의 "상태 없음, 부작용 없음" 계약을 지키려고 감시자�
 
 *읽기 (`Bundles`).* 내보내기만 이 읽개를 쓴다. 결과 통보는 `ResultExportFile`(아래 구현(C2)). picasso `BundleWriter` 의 규율(jsonl 먼저, `manifest.json` 마지막, 각각 이름 바꾸기)을 전제한다.
 - manifest 가 없으면 아직이다(`NotReady`, 다음 폴링에 다시). manifest 는 1 MiB, 줄 파일은 64 MiB 까지만 읽는다. 넘으면 깨짐(`Broken`)이다.
-- manifest 의 `schemaVersion` 이 아는 판이어야 한다(내보내기 manifest `"5"`. 결과 통보는 manifest 가 없고 줄마다 판 `"1"` 을 든다 — 아래 구현(C2)). run 칸(`runId`)과
+- manifest 의 `schemaVersion` 이 아는 버전이어야 한다(내보내기 manifest `"5"` 또는 `"6"`. 결과 통보는 manifest 가 없고 줄마다 버전 `"1"` 을 든다 — 아래 구현(C2)). run 칸(`runId`)과
   `counts` 가 있어야 한다.
 - 줄은 `counts.<키>` 만큼만 읽는다. 살아 있는 담는 쪽은 줄을 더할 때 파일을 통째로 다시 쓰므로 파일이 manifest 보다 새로울 수 있다. 그 뒤의
   줄은 아직 manifest 가 쓰이지 않은 다음 판의 것이다. 줄이 모자라면 아직이다. 센 수가 0 이면 파일을 읽지 않는다.
