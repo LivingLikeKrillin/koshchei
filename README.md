@@ -52,7 +52,7 @@ picasso 번들은 조치 탐색 기록과 인시던트 줄을 담아 picasso가 
 `incidents.jsonl`의 첫 줄:
 
 ```json
-{"incidentId":"incident-1","jobOrderId":"PATROL-1","executionId":"exec-2","robotId":"hum-02","unitId":"remedy-1-pick_place","at":"2026-09-06T00:00:02Z","unresolved":false,"observation":{"linkBroken":false,"lateEvents":[],"progressObservable":true,"progressStalled":false},"verification":"NOT_REQUESTED","resolution":null,"digest":"3e0e655dd7176552ad3b85741e57008f35716cb33dc3ac786271a7553911e656"}
+{"incidentId":"incident-1","jobOrderId":"PATROL-1","executionId":"exec-2","robotId":"hum-02","unitId":"remedy-1-pick_place","at":"2026-09-06T00:00:02Z","unresolved":false,"observation":{"linkBroken":false,"lateEvents":[],"progressObservable":true,"progressStalled":false},"verification":"NOT_REQUESTED","resolution":null,"digest":"a4a40278620c1cdc3904f3d4138a39a57fa62b3b63bc99f8b08291f72a24ee5a"}
 ```
 
 `incident-1`은 실행 단계 `remedy-1-pick_place`에서 `00:00:02`에 발생한 인시던트이며, 원문의 `failureClass`는 `PAYLOAD_LOST`입니다. 에피소드 이벤트의 `eventId`는 `incident:<runId>:<digest>`입니다. 별도 작업 응답은 ResultExport 스키마 1의 JobResponse 하나가 한 줄을 차지하며, 감시기는 `jobOrderId`로 전달할 에피소드를 찾습니다. `run-1`에는 작업 응답이 없습니다.
